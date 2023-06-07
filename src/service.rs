@@ -1,5 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
+use crate::{injectables::Injectable, service_container::ServiceContainer};
+
 pub struct Service<T: ?Sized>(Arc<T>);
 
 impl<T> Service<T> {
@@ -35,5 +37,11 @@ impl<T: ?Sized> Clone for Service<T> {
 impl<T: ?Sized> From<Arc<T>> for Service<T> {
     fn from(arc: Arc<T>) -> Self {
         Self(arc)
+    }
+}
+
+impl<T: 'static> Injectable for (Service<T>,) {
+    fn inject(container: &ServiceContainer) -> Self {
+        (container.get::<Service<T>>().as_mut().unwrap().clone(),)
     }
 }
