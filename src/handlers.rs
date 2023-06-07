@@ -29,3 +29,12 @@ where
         (self)(arg1, arg2);
     }
 }
+
+impl<Func, Arg1, Arg2, Arg3> Handler<(Arg1, Arg2, Arg3)> for Func
+where
+    Func: Fn(Arg1, Arg2, Arg3),
+{
+    fn call(&self, (arg1, arg2, arg3): (Arg1, Arg2, Arg3)) {
+        (self)(arg1, arg2, arg3);
+    }
+}

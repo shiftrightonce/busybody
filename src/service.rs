@@ -40,8 +40,8 @@ impl<T: ?Sized> From<Arc<T>> for Service<T> {
     }
 }
 
-impl<T: 'static> Injectable for (Service<T>,) {
+impl<T: 'static> Injectable for Service<T> {
     fn inject(container: &ServiceContainer) -> Self {
-        (container.get::<Service<T>>().as_mut().unwrap().clone(),)
+        container.get::<Service<T>>().as_mut().unwrap().clone()
     }
 }

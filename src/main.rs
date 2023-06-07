@@ -6,32 +6,41 @@ mod service;
 mod service_container;
 use service::Service;
 
-#[derive(Debug)]
-pub struct User {
-    pub id: i32,
-    pub name: String,
-}
-
 fn main() {
-    let user = User {
-        id: 545656,
-        name: "John doe".into(),
-    };
-
     ServiceContainerBuilder::new()
-        .register(300i32)
-        .register(user)
         .register(Service::new(User {
-            id: 33,
-            name: "Jibao".to_owned(),
+            id: 65,
+            name: "Jibao".into(),
         }))
+        .register(Service::new(Grade { id: 5000 }))
         .build();
 
     inject_service(|user: Service<User>| {
-        dbg!(user.get_ref());
+        println!(
+            "we go the injected user: {:#?}, name: {:#?}",
+            user.as_ref().id,
+            user.as_ref().name
+        );
     });
 
-    inject_service(|| {
-        dbg!("this is really cool");
+    inject_service(|grade: Service<Grade>| {
+        println!("we go the injected grade: {:#?}", grade.as_ref().id);
     });
+    inject_service(|grade: Service<Grade>, user: Service<User>| {
+        println!(
+            "we go the injected grade: {:#?} and user: {:#?}",
+            grade.id, &user.name
+        );
+    });
+}
+
+#[derive(Debug)]
+struct User {
+    id: i32,
+    name: String,
+}
+
+#[derive(Debug)]
+struct Grade {
+    id: i32,
 }
