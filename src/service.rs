@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{ops::Deref, sync::Arc};
 
 use crate::{injectables::Injectable, service_container::ServiceContainer};

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -11,16 +13,6 @@ pub struct ServiceContainer {
 }
 
 impl ServiceContainer {
-    pub fn new() -> Self {
-        Self {
-            items: HashMap::new(),
-        }
-    }
-
-    fn new_with(items: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>) -> Self {
-        Self { items }
-    }
-
     pub fn register<T: Send + Sync + 'static>(mut self, ext: T) -> Self {
         self.items.insert(TypeId::of::<T>(), Box::new(ext));
         self
@@ -50,6 +42,6 @@ impl ServiceContainerBuilder {
     }
 
     pub fn build(self) {
-        _ = SERVICE_CONTAINER.set(ServiceContainer::new_with(self.items));
+        _ = SERVICE_CONTAINER.set(ServiceContainer { items: self.items });
     }
 }

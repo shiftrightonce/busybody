@@ -15,6 +15,7 @@ fn main() {
         .register(Service::new(Grade { id: 5000 }))
         .build();
 
+    // Inject the User instance and call the closure
     inject_service(|user: Service<User>| {
         println!(
             "we go the injected user: {:#?}, name: {:#?}",
@@ -23,9 +24,11 @@ fn main() {
         );
     });
 
+    // Inject the Grade instance and call the closure
     inject_service(|grade: Service<Grade>| {
         println!("we go the injected grade: {:#?}", grade.as_ref().id);
     });
+    // Inject both User and Grade instance and call the closure
     inject_service(|grade: Service<Grade>, user: Service<User>| {
         println!(
             "we go the injected grade: {:#?} and user: {:#?}",
