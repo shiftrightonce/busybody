@@ -1,15 +1,10 @@
-use crate::{
-    helpers::inject_service,
-    service_container::{ServiceContainer, ServiceContainerBuilder},
-};
+use crate::{helpers::inject_service, service_container::ServiceContainerBuilder};
+mod handlers;
 mod helpers;
 mod injectables;
 mod service;
 mod service_container;
 use service::Service;
-use std::sync::OnceLock;
-
-static SERVICE_CONTAINER: OnceLock<ServiceContainer> = OnceLock::new();
 
 #[derive(Debug)]
 pub struct User {
