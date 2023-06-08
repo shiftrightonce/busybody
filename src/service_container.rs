@@ -3,25 +3,29 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    sync::OnceLock,
+    rc::Rc,
+    sync::{Arc, OnceLock},
 };
 
-pub(crate) static SERVICE_CONTAINER: OnceLock<ServiceContainer> = OnceLock::new();
+use crate::service::Service;
+
+pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
 
 pub struct ServiceContainer {
     items: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
 }
 
 impl ServiceContainer {
-    pub fn register<T: Send + Sync + 'static>(mut self, ext: T) -> Self {
-        self.items.insert(TypeId::of::<T>(), Box::new(ext));
-        self
-    }
-
     pub fn get<T: 'static>(&self) -> Option<&T> {
         self.items
             .get(&TypeId::of::<T>())
             .and_then(|b| b.downcast_ref())
+    }
+
+    pub fn service<T: 'static>(&self) -> Option<Service<T>> {
+        self.items
+            .get(&TypeId::of::<Service<T>>())
+            .and_then(|b| b.downcast_ref().cloned())
     }
 }
 
@@ -41,7 +45,18 @@ impl ServiceContainerBuilder {
         self
     }
 
-    pub fn build(self) {
-        _ = SERVICE_CONTAINER.set(ServiceContainer { items: self.items });
+    /// T is wrapped in a `Service`
+    /// This means to get T back you need to specificy `Service<T>`
+    pub fn service<T: Send + Sync + 'static>(mut self, ext: T) -> Self {
+        self.items
+            .insert(TypeId::of::<T>(), Box::new(Service::new(ext)));
+        self
+    }
+
+    pub fn build(self) -> Arc<ServiceContainer> {
+        let container = Arc::new(ServiceContainer { items: self.items });
+        _ = SERVICE_CONTAINER.set(container.clone());
+
+        container.clone()
     }
 }

@@ -4,6 +4,7 @@ use std::{ops::Deref, sync::Arc};
 
 use crate::{injectables::Injectable, service_container::ServiceContainer};
 
+#[derive(Debug)]
 pub struct Service<T: ?Sized>(Arc<T>);
 
 impl<T> Service<T> {

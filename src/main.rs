@@ -6,17 +6,28 @@ mod helpers;
 mod injectables;
 mod service;
 mod service_container;
+mod service_provider;
 use injectables::Injectable;
 use service::Service;
 
+struct UserId(i32);
+
+impl Injectable for UserId {
+    fn inject(_container: &service_container::ServiceContainer) -> Self {
+        UserId(3000)
+    }
+}
+
 fn main() {
-    ServiceContainerBuilder::new()
+    let container = ServiceContainerBuilder::new()
         .register(Service::new(User {
             id: 65,
             name: "Jibao".into(),
         }))
         .register(Service::new(Grade { id: 5000 }))
         .register(Service::new(LoggedInUser::new()))
+        .register(UserId)
+        .register(44)
         .build();
 
     // Inject the User instance and call the closure
@@ -49,6 +60,10 @@ fn main() {
             dbg!(&logged_in.user());
         });
     });
+
+    let user = container.service::<User>();
+
+    dbg!(user);
 
     handle.join().unwrap();
 }
