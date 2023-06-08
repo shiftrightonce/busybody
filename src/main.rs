@@ -56,8 +56,8 @@ fn main() {
     });
 
     let handle = thread::spawn(|| {
-        inject_service(|logged_in: Service<LoggedInUser>| {
-            dbg!(&logged_in.user());
+        inject_service(|logged_in: Service<LoggedInUser>, grade: Service<Grade>| {
+            dbg!(&logged_in.user(), grade);
         });
     });
 

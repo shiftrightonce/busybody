@@ -3,7 +3,6 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    rc::Rc,
     sync::{Arc, OnceLock},
 };
 
@@ -46,10 +45,10 @@ impl ServiceContainerBuilder {
     }
 
     /// T is wrapped in a `Service`
-    /// This means to get T back you need to specificy `Service<T>`
+    /// This means to get T back you need to specify `Service<T>`
     pub fn service<T: Send + Sync + 'static>(mut self, ext: T) -> Self {
         self.items
-            .insert(TypeId::of::<T>(), Box::new(Service::new(ext)));
+            .insert(TypeId::of::<Service<T>>(), Box::new(Service::new(ext)));
         self
     }
 
