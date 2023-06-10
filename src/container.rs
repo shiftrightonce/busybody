@@ -1,0 +1,101 @@
+#![allow(dead_code)]
+
+use crate::service::Service;
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    sync::{Arc, OnceLock, RwLock},
+};
+
+pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
+
+pub struct ServiceContainer {
+    services: RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>,
+}
+
+impl Default for ServiceContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ServiceContainer {
+    pub fn new() -> Self {
+        Self {
+            services: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn get<T: 'static>(&self) -> Option<Service<T>> {
+        self.get_type::<Service<T>>()
+    }
+
+    pub fn get_type<T: Clone + 'static>(&self) -> Option<T> {
+        if let Ok(services) = self.services.read() {
+            let result: Option<&T> = services
+                .get(&TypeId::of::<T>())
+                .and_then(|b| b.downcast_ref());
+
+            if let Some(service) = result {
+                return Some(service.clone());
+            }
+        }
+        None
+    }
+
+    pub fn set_type<T: Clone + Send + Sync + 'static>(&self, ext: T) -> &Self {
+        if let Ok(mut list) = self.services.write() {
+            list.insert(TypeId::of::<T>(), Box::new(ext));
+        }
+        self
+    }
+    pub fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
+        self.set_type(Service::new(ext))
+    }
+}
+pub struct ServiceContainerBuilder {
+    items: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
+}
+
+impl Default for ServiceContainerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ServiceContainerBuilder {
+    pub fn new() -> Self {
+        Self {
+            items: HashMap::new(),
+        }
+    }
+
+    pub fn register<T: Clone + Send + Sync + 'static>(mut self, ext: T) -> Self {
+        self.items.insert(TypeId::of::<T>(), Box::new(ext));
+        self
+    }
+
+    /// T is wrapped in a `Service`
+    /// This means to get T back you need to specify `Service<T>`
+    pub fn service<T: Send + Sync + 'static>(mut self, ext: T) -> Self {
+        self.items
+            .insert(TypeId::of::<Service<T>>(), Box::new(Service::new(ext)));
+        self
+    }
+
+    pub fn build(self) -> Arc<ServiceContainer> {
+        let container = Arc::new(ServiceContainer {
+            services: RwLock::new(self.items),
+        });
+        _ = SERVICE_CONTAINER.set(container.clone());
+
+        container
+    }
+}
+
+pub fn service_container() -> Arc<ServiceContainer> {
+    if let Some(container) = SERVICE_CONTAINER.get() {
+        return container.clone();
+    }
+    panic!("Use the ServiceContainerBuilder to build a global service container");
+}

@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use crate::{container::ServiceContainer, injectable::Injectable};
+use async_trait::async_trait;
 use std::{ops::Deref, sync::Arc};
-
-use crate::{injectables::Injectable, service_container::ServiceContainer};
 
 #[derive(Debug)]
 pub struct Service<T: ?Sized>(Arc<T>);
@@ -43,8 +43,20 @@ impl<T: ?Sized> From<Arc<T>> for Service<T> {
     }
 }
 
+impl<T: Sized> From<T> for Service<T> {
+    fn from(arc: T) -> Self {
+        Self(Arc::new(arc))
+    }
+}
+
+#[async_trait(?Send)]
 impl<T: 'static> Injectable for Service<T> {
-    fn inject(container: &ServiceContainer) -> Self {
-        container.get::<Service<T>>().as_mut().unwrap().clone()
+    async fn inject(container: &ServiceContainer) -> Self {
+        match container.get::<T>() {
+            Some(service) => service,
+            None => {
+                panic!("Could not find service")
+            }
+        }
     }
 }
