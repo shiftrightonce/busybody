@@ -1,4 +1,4 @@
-//! Singleton<T> is use to fetch an existing instance in the service container or
+//! `Singleton<T>` is use to fetch an existing instance in the service container or
 //! instantiate a new instance, wrap it in a `Service`, stores a copy and returns a copy
 //!
 #![allow(dead_code)]
@@ -6,6 +6,7 @@ use crate::{container::ServiceContainer, injectable::Injectable, service::Servic
 use async_trait::async_trait;
 use std::ops::Deref;
 
+#[derive(Debug)]
 pub struct Singleton<T: Injectable>(Service<T>);
 
 #[async_trait(?Send)]
