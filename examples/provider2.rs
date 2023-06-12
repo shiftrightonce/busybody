@@ -11,12 +11,12 @@ async fn main() {
     _ = ServiceContainerBuilder::new()
         // Point 2. Register an instance of the application configuration as a `service` (thread safe)
         .service(AppConfig {
-            api_token: "invoice_token12345".into(),
+            api_token: "super_secret_token".into(),
         })
         .build();
 
     // Point 3. Auto instantiate an instance of `DailyInvoicesFetcher`
-    //          We are able to `build` and instance because `DailyInvoicesFetcher` implements `Injectable`
+    //          We are able to `build` an instance because `DailyInvoicesFetcher` implements `Injectable`
     let invoice_fetcher = helpers::singleton::<DailyInvoicesFetcher>().await;
     println!(
         "client id: {}. invoices fetched: {:#?}",
@@ -34,7 +34,7 @@ async fn main() {
 
     // Point 5: Using `inject_all` you can inject multiple injectable(s)
     let (fetcher, singleton_fetcher) =
-        helpers::inject_all::<(DailyInvoicesFetcher, Singleton<DailyInvoicesFetcher>)>().await; // inject on or more injectable(s)
+        helpers::inject_all::<(DailyInvoicesFetcher, Singleton<DailyInvoicesFetcher>)>().await; // inject one or more injectable
 
     println!(
         "new client id: {}. invoices fetched: {:#?}",

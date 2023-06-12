@@ -1,5 +1,7 @@
+//! Singleton<T> is use to fetch an existing instance in the service container or
+//! instantiate a new instance, wrap it in a `Service`, stores a copy and returns a copy
+//!
 #![allow(dead_code)]
-
 use crate::{container::ServiceContainer, injectable::Injectable, service::Service};
 use async_trait::async_trait;
 use std::ops::Deref;
@@ -42,11 +44,5 @@ impl<T: Injectable + ?Sized> Deref for Singleton<T> {
 impl<T: Injectable + ?Sized> Clone for Singleton<T> {
     fn clone(&self) -> Self {
         Self(Service::clone(&self.0))
-    }
-}
-
-impl<T: Injectable + ?Sized> From<T> for Singleton<T> {
-    fn from(service: T) -> Self {
-        Self(Service::new(service))
     }
 }

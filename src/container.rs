@@ -84,18 +84,12 @@ impl ServiceContainerBuilder {
     }
 
     pub fn build(self) -> Arc<ServiceContainer> {
-        let container = Arc::new(ServiceContainer {
-            services: RwLock::new(self.items),
-        });
-        _ = SERVICE_CONTAINER.set(container.clone());
-
-        container
+        let container = SERVICE_CONTAINER.get_or_init(|| Arc::new(ServiceContainer::default()));
+        if let Ok(mut services) = container.services.write() {
+            for (k, v) in self.items {
+                services.insert(k, v);
+            }
+        }
+        container.clone()
     }
-}
-
-pub fn service_container() -> Arc<ServiceContainer> {
-    if let Some(container) = SERVICE_CONTAINER.get() {
-        return container.clone();
-    }
-    panic!("Use the ServiceContainerBuilder to build a global service container");
 }

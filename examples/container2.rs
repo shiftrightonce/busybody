@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use busybody::*;
+use busybody::{helpers::service_container, *};
 
 #[derive(Debug)]
 struct DbClient {
@@ -29,7 +29,7 @@ fn main() {
     setup_container();
 
     // 2. Get things from the container by using the function `server_container`
-    let meaning = service_container().get_type::<i32>();
+    let meaning = service_container().get_type::<i32>(); // `get_type` returns things set with `register`
     let client = service_container().get::<DbClient>();
 
     // 3. Add or update things in the container via the function `service_container`

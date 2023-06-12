@@ -8,7 +8,7 @@ async fn main() {
     _ = ServiceContainerBuilder::new()
         // Point 2. Register an instance of the application configuration as a `service` (thread safe)
         .service(AppConfig {
-            api_token: "invoice_token12345".into(),
+            api_token: "token12345".into(),
         })
         .build();
 

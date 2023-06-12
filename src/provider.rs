@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{container::service_container, injectable::Injectable, service::Service};
+use crate::{helpers::service_container, injectable::Injectable, service::Service};
 
 pub struct ServiceProvider;
 

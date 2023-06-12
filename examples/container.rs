@@ -28,7 +28,7 @@ fn main() {
     let client = container.get::<DbClient>();
 
     // 3. Add or update things in the container
-    container.set(RedisClient(34343_usize)); // set Wraps value in a Service<T>
+    container.set(RedisClient(34343_usize)); // set Wraps it's value in a Service<T>
 
     println!("meaning of life: {:#?}", meaning.unwrap());
     println!("db connection: {:#?}", client.unwrap());
