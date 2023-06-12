@@ -14,4 +14,4 @@ async-trait = "0.1.68"
 [dev-dependencies]
 tokio = { version = "1.28.2", features = ["full"] }
 actix-web = { version = "4" }
-rand = { version = "*" }
+rand = { version = "0.8.5" }
