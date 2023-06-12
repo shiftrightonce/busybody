@@ -28,7 +28,7 @@ fn setup_container() {
 fn main() {
     setup_container();
 
-    // 2. Get things from the container by using the function `server_container`
+    // 2. Get things from the container by using the function `service_container`
     let meaning = service_container().get_type::<i32>(); // `get_type` returns things set with `register`
     let client = service_container().get::<DbClient>();
 

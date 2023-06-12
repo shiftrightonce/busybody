@@ -43,7 +43,7 @@ struct MyAdder1 {
 
 impl Add for MyAdder1 {
     fn add(&self, num1: i32, num2: i32) -> i32 {
-        println!("User MyAdder1");
+        println!("Using MyAdder1");
         num1 + num2
     }
 }
@@ -53,7 +53,7 @@ struct MyAdder2;
 
 impl Add for MyAdder2 {
     fn add(&self, num1: i32, num2: i32) -> i32 {
-        println!("User MyAdder2");
+        println!("Using MyAdder2");
         num1 + num2 * 2
     }
 }
