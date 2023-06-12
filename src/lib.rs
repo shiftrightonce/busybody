@@ -17,3 +17,5 @@ pub use handlers::*;
 pub use injectable::Injectable;
 pub use service::Service;
 pub use singleton::Singleton;
+
+pub use async_trait::async_trait;

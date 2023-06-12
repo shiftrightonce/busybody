@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use busybody::{
     helpers::{self},
     Injectable, ServiceContainer, ServiceContainerBuilder, Singleton,
@@ -76,7 +75,7 @@ impl DailyInvoicesFetcher {
     }
 }
 
-#[async_trait(?Send)]
+#[busybody::async_trait(?Send)]
 impl Injectable for DailyInvoicesFetcher {
     async fn inject(container: &ServiceContainer) -> Self {
         let mut rng = rand::thread_rng(); // for random numbers generation
