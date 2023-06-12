@@ -12,7 +12,7 @@ async fn main() {
         .build();
 
     // Point 3. Auto instantiate an instance of `DailyInvoicesFetcher`
-    //          We are able to `build` and instance because `DailyInvoicesFetcher` implements `Injectable`
+    //          We are able to `build` an instance because `DailyInvoicesFetcher` implements `Injectable`
     let invoice_fetcher = helpers::provide::<DailyInvoicesFetcher>().await;
     println!(
         "client id: {}. invoices fetched: {:#?}",

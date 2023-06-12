@@ -8,7 +8,7 @@ use crate::{
     Singleton,
 };
 
-pub async fn inject_and_call<F, Args>(handler: F)
+async fn inject_and_call<F, Args>(handler: F)
 where
     F: Handler<Args>,
     Args: Injectable + 'static,
@@ -35,6 +35,8 @@ pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
 /// Given a type, this function will try to find an instance of the type
 /// wrapped in a `Service<T>` that is currently registered in the service
 /// container
+///
+/// Example
 pub async fn service<T: 'static>() -> Service<T> {
     ServiceProvider::service().await
 }
