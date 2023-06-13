@@ -6,7 +6,7 @@ license = "MIT"
 description = "Service Container and Dependency injector crate"
 repository = "https://github.com/shiftrightonce/busybody"
 rust-version = "1.70"
-keywords = ["webdev", "web", "service container", "dependency injection"]
+keywords = ["webdev", "web", "service-container", "dependency-injection"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
