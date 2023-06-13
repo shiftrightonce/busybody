@@ -3,12 +3,6 @@
 **Busybody is a service container and dependency injector for rust application.**
 ---
 
-```toml
-[dependencies]
-busybody = "0.1.0"
-```
-
-
 ## Busybody as a service container
 <details>
 <summary>
