@@ -11,7 +11,7 @@ This example shows you how to make your type `injectable`. All that is require
 is to implement `injectable` as follows:
 
 ```rust
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for HandlerExecutionTime {
     async fn inject(container: &ServiceContainer) -> Self {
       // You can do one or all of the following:

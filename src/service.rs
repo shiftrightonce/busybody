@@ -49,7 +49,7 @@ impl<T: Sized> From<T> for Service<T> {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<T: 'static> Injectable for Service<T> {
     async fn inject(container: &ServiceContainer) -> Self {
         match container.get::<T>() {

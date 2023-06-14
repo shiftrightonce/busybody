@@ -23,7 +23,7 @@ pub trait HackerNewsClientTrait: Debug + Send + Sync {
 }
 
 #[derive(Debug)]
-pub(crate) struct HackerNewsClient {
+pub struct HackerNewsClient {
     config: Config,
 }
 
@@ -33,7 +33,7 @@ impl HackerNewsClient {
     }
 }
 
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for HackerNewsClient {
     async fn inject(container: &busybody::ServiceContainer) -> Self {
         let config = if let Some(config) = container.get_type::<Config>() {

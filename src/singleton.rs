@@ -9,7 +9,7 @@ use std::ops::Deref;
 #[derive(Debug)]
 pub struct Singleton<T: Injectable>(Service<T>);
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<T: Injectable + Send + Sync + 'static> Injectable for Singleton<T> {
     async fn inject(container: &ServiceContainer) -> Self {
         let content = match container.get::<T>() {
@@ -24,7 +24,7 @@ impl<T: Injectable + Send + Sync + 'static> Injectable for Singleton<T> {
     }
 }
 
-impl<T: Injectable + ?Sized> Singleton<T> {
+impl<T: Injectable + Sized> Singleton<T> {
     pub fn get_ref(&self) -> &T {
         self.0.as_ref()
     }
@@ -34,7 +34,7 @@ impl<T: Injectable + ?Sized> Singleton<T> {
     }
 }
 
-impl<T: Injectable + ?Sized> Deref for Singleton<T> {
+impl<T: Injectable + Sized> Deref for Singleton<T> {
     type Target = Service<T>;
 
     fn deref(&self) -> &Service<T> {
@@ -42,7 +42,7 @@ impl<T: Injectable + ?Sized> Deref for Singleton<T> {
     }
 }
 
-impl<T: Injectable + ?Sized> Clone for Singleton<T> {
+impl<T: Injectable + Sized> Clone for Singleton<T> {
     fn clone(&self) -> Self {
         Self(Service::clone(&self.0))
     }

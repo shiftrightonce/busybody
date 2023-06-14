@@ -75,7 +75,7 @@ impl DailyInvoicesFetcher {
     }
 }
 
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl Injectable for DailyInvoicesFetcher {
     async fn inject(container: &ServiceContainer) -> Self {
         let mut rng = rand::thread_rng(); // for random numbers generation

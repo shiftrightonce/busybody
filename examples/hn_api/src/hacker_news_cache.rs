@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::{collections::HashMap, sync::RwLock};
 
 #[derive(Debug)]
-pub(crate) struct HackerNewsCacheClient {
+pub struct HackerNewsCacheClient {
     top_stories: RwLock<Vec<u32>>,
     stories: RwLock<HashMap<u32, Story>>,
     client: busybody::Singleton<HackerNewsClient>,
@@ -19,7 +19,7 @@ impl HackerNewsCacheClient {
     }
 }
 
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for HackerNewsCacheClient {
     async fn inject(_: &busybody::ServiceContainer) -> Self {
         Self::new(busybody::helpers::singleton::<HackerNewsClient>().await)

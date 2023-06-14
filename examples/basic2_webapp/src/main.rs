@@ -39,7 +39,7 @@ impl ServerUptime {
 }
 
 // 2. Implement "injectable" for ServerUptime
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for ServerUptime {
     async fn inject(_: &ServiceContainer) -> Self {
         Self::new() // each time return a new instance
@@ -54,7 +54,7 @@ struct HandlerExecutionTime {
 }
 
 // 3. Implement "injectable" for HandlerExecutionTime
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for HandlerExecutionTime {
     async fn inject(_: &ServiceContainer) -> Self {
         // 4. Ask for a singleton instance of ServerUptime to be returned.

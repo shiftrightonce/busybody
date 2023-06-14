@@ -2,19 +2,19 @@ use crate::container::ServiceContainer;
 use async_trait::async_trait;
 use futures::join;
 
-#[async_trait(?Send)]
-pub trait Injectable: Sized {
+#[async_trait]
+pub trait Injectable {
     async fn inject(container: &ServiceContainer) -> Self;
 }
 
 // Zero argument
-#[async_trait(?Send)]
+#[async_trait]
 impl Injectable for () {
     async fn inject(_: &ServiceContainer) -> Self {}
 }
 
 // 1 arguments
-#[async_trait(?Send)]
+#[async_trait]
 impl<A: Injectable> Injectable for (A,) {
     async fn inject(c: &ServiceContainer) -> Self {
         (A::inject(c).await,)
@@ -25,8 +25,8 @@ impl<A: Injectable> Injectable for (A,) {
 /// for a tuple with one element but for tuples with two or more elements
 macro_rules! tuple_from_injectable {
     ($($T: ident),*) => {
-        #[async_trait(?Send)]
-        impl<$($T: Injectable + 'static),+> Injectable for ($($T,)+) {
+        #[async_trait]
+        impl<$($T: Injectable + Sync + Send + 'static),+> Injectable for ($($T,)+) {
             async fn inject(c: &ServiceContainer) -> Self {
              join!($($T::inject(c)),+)
             }

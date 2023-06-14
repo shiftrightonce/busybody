@@ -86,7 +86,7 @@ struct Config {
   hostname: String
 }
 
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for Config { // implementing "injector" makes your type injectable
 
     async fn inject(_: &ServiceContainer) -> Self {
