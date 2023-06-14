@@ -2,3 +2,4 @@
 /examples/basic_webapp/target
 /examples/basic2_webapp/target
 /examples/hn_api/target
+/examples/hn_axum/target
