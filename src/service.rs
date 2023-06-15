@@ -60,3 +60,46 @@ impl<T: 'static> Injectable for Service<T> {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct RawType<T: Sized>(T);
+
+impl<T> RawType<T> {
+    pub fn new(the_type: T) -> Self {
+        RawType(the_type)
+    }
+}
+
+impl<T: Sized> RawType<T> {
+    pub fn get_ref(&self) -> &T {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T: Sized> Deref for RawType<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Sized> From<T> for RawType<T> {
+    fn from(the_type: T) -> Self {
+        Self(the_type)
+    }
+}
+
+#[async_trait]
+impl<T: Default + Clone + 'static> Injectable for RawType<T> {
+    async fn inject(container: &ServiceContainer) -> Self {
+        match container.get_type::<T>() {
+            Some(service) => Self::new(service),
+            None => Self::new(T::default()),
+        }
+    }
+}
