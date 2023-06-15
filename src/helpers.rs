@@ -8,13 +8,15 @@ use crate::{
     Singleton,
 };
 
-async fn inject_and_call<F, Args>(handler: F)
+/// Takes an async function or closure and executes it
+/// Require arguments are injected during the call
+pub async fn inject_and_call<F, Args>(handler: F) -> F::Output
 where
     F: Handler<Args>,
     Args: Injectable + 'static,
 {
     let args = Args::inject(SERVICE_CONTAINER.get().unwrap()).await;
-    handler.call(args);
+    handler.call(args).await
 }
 
 /// Given a tuple of types, this function will try to resolve them
