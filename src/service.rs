@@ -24,10 +24,10 @@ impl<T: ?Sized> Service<T> {
 }
 
 impl<T: ?Sized> Deref for Service<T> {
-    type Target = Arc<T>;
+    type Target = T;
 
-    fn deref(&self) -> &Arc<T> {
-        &self.0
+    fn deref(&self) -> &T {
+        self.0.as_ref()
     }
 }
 
