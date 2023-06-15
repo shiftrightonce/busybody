@@ -10,7 +10,9 @@ pub trait Injectable {
 // Zero argument
 #[async_trait]
 impl Injectable for () {
-    async fn inject(_: &ServiceContainer) -> Self {}
+    async fn inject(_: &ServiceContainer) -> Self {
+        ()
+    }
 }
 
 // 1 arguments
