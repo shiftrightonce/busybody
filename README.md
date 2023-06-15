@@ -51,7 +51,7 @@ struct Config {
 }
 
 #[busybody::async_trait(?Send)]
-impl busybody::Injectable for Config { // implementing "injector" makes your type injectable
+impl busybody::Injectable for Config { // implementing "Injectable" makes your type callable by the injector 
 
     async fn inject(_: &ServiceContainer) -> Self {
        Self {
