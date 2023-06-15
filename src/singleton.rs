@@ -26,7 +26,7 @@ impl<T: Injectable + Send + Sync + 'static> Injectable for Singleton<T> {
 
 impl<T: Injectable + Sized> Singleton<T> {
     pub fn get_ref(&self) -> &T {
-        self.0.as_ref()
+        &self.0
     }
 
     pub fn into_inner(self) -> Service<T> {
