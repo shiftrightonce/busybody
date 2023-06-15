@@ -67,6 +67,7 @@ pub use container::ServiceContainer;
 pub use container::ServiceContainerBuilder;
 pub use handlers::*;
 pub use injectable::Injectable;
+pub use service::RawType;
 pub use service::Service;
 pub use singleton::Singleton;
 
