@@ -23,8 +23,8 @@ fn main() {
   .register(600i32) // left as it is, i32
   .build();
 
-  let config = container.get::<Config>().unwrap(); // When "some" will return Service<Config>
-  let max_connection = container.get_type::<i32>().unwrap(); // When "some" will return i32
+  let config = container.get::<Config>().unwrap(); // When "some", will return Service<Config>
+  let max_connection = container.get_type::<i32>().unwrap(); // When "some", will return i32
 
   println!("config: {:#?}", &config);
   println!("hostname: {:#?}", &config.hostname);
