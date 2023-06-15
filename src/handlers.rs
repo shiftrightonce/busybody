@@ -1,35 +1,86 @@
-pub trait Handler<Args> {
-    fn call(&self, args: Args);
+use futures::Future;
+
+// pub trait Handler<Args> {
+//     fn call(&self, args: Args);
+// }
+
+// ----
+pub trait Handler<Args>: Clone + 'static {
+    type Output;
+    type Future: Future<Output = Self::Output>;
+    fn call(&self, args: Args) -> Self::Future;
 }
 
-impl<Func> Handler<()> for Func
+// ---
+
+// impl<Func> Handler<()> for Func
+// where
+//     Func: Fn(),
+// {
+//     fn call(&self, _: ()) {
+//         (self)();
+//     }
+// }
+
+impl<Func, Fut> Handler<()> for Func
 where
-    Func: Fn(),
+    Func: Fn() -> Fut + Clone + 'static,
+    Fut: Future,
 {
-    fn call(&self, _: ()) {
-        (self)();
+    type Output = Fut::Output;
+    type Future = Fut;
+    fn call(&self, _: ()) -> Self::Future {
+        (self)()
     }
 }
 
 // 1 Argument
 /// `handle_func` macro is expanding to this but for
 /// 2 or more arguments
-impl<Func, Arg1> Handler<(Arg1,)> for Func
+// impl<Func, Arg1> Handler<(Arg1,)> for Func
+// where
+//     Func: Fn(Arg1),
+// {
+//     fn call(&self, (arg1,): (Arg1,)) {
+//         (self)(arg1);
+//     }
+// }
+
+impl<Func, Arg1, Fut> Handler<(Arg1,)> for Func
 where
-    Func: Fn(Arg1),
+    Func: Fn(Arg1) -> Fut + Clone + 'static,
+    Fut: Future,
 {
-    fn call(&self, (arg1,): (Arg1,)) {
-        (self)(arg1);
+    type Output = Fut::Output;
+    type Future = Fut;
+    fn call(&self, (arg1,): (Arg1,)) -> Self::Future {
+        (self)(arg1)
     }
 }
 
+// macro_rules! handler_func{
+//     ($($T: ident),*) => {
+//         impl<Func, $($T),+> Handler<($($T),+)> for Func where Func: Fn($($T),+),
+//         {
+//             #[allow(non_snake_case)]
+//             fn call(&self, ($($T),+): ($($T),+)) {
+//                 (self)($($T),+);
+//             }
+//         }
+//     };
+// }
+
 macro_rules! handler_func{
     ($($T: ident),*) => {
-        impl<Func, $($T),+> Handler<($($T),+)> for Func where Func: Fn($($T),+),
+        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: Fn($($T),+) -> Fut + Clone + 'static,
+        Fut: Future,
         {
+            type Output = Fut::Output;
+            type Future = Fut;
+
             #[allow(non_snake_case)]
-            fn call(&self, ($($T),+): ($($T),+)) {
-                (self)($($T),+);
+            fn call(&self, ($($T),+): ($($T),+)) -> Self::Future {
+                (self)($($T),+)
             }
         }
     };
