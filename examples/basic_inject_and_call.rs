@@ -15,7 +15,7 @@ async fn main() {
     println!("200 double is: {}", double_result);
 
     // 3. Same as above but we are making use of "RawType<T>"
-    //    RawType<T> trys to find an instance of the speicified type. If none exist,
+    //    RawType<T> tries to find an instance of the specified type. If none exist,
     //    it uses the `default` associate method to create a default instance of the Type.
     //    This means, the "T" in RawType must implement the `Default` trait.
     let sum = helpers::inject_and_call(|raw_i32: RawType<i32>, service_i32: Service<i32>| async {
@@ -26,7 +26,7 @@ async fn main() {
 }
 
 // 4. Function is taken an I32.
-//    RawType<T> trys to find an instance of the speicified type. If none exist,
+//    RawType<T> tries to find an instance of the specified type. If none exist,
 //    it uses the `default` associate method to create a default instance of the Type.
 //    This means, the "T" in RawType must implement the `Default` trait.
 async fn double(count: RawType<i32>) -> i32 {
