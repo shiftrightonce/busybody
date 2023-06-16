@@ -43,14 +43,13 @@ fn main() {
 
 ```rust
 use busybody::*;
-use async_trait::async_trait;
 
 #[derive(Debug)]
 struct Config {
   hostname: String
 }
 
-#[busybody::async_trait(?Send)]
+#[busybody::async_trait]
 impl busybody::Injectable for Config { // implementing "Injectable" makes your type callable by the injector 
 
     async fn inject(_: &ServiceContainer) -> Self {
@@ -79,7 +78,6 @@ async fn main() {
 
 ```rust
 use busybody::*;
-use async_trait::async_trait;
 
 #[derive(Debug)]
 struct Config {
