@@ -13,15 +13,6 @@ pub trait Handler<Args>: Clone + 'static {
 
 // ---
 
-// impl<Func> Handler<()> for Func
-// where
-//     Func: Fn(),
-// {
-//     fn call(&self, _: ()) {
-//         (self)();
-//     }
-// }
-
 impl<Func, Fut> Handler<()> for Func
 where
     Func: Fn() -> Fut + Clone + 'static,
@@ -35,17 +26,6 @@ where
 }
 
 // 1 Argument
-/// `handle_func` macro is expanding to this but for
-/// 2 or more arguments
-// impl<Func, Arg1> Handler<(Arg1,)> for Func
-// where
-//     Func: Fn(Arg1),
-// {
-//     fn call(&self, (arg1,): (Arg1,)) {
-//         (self)(arg1);
-//     }
-// }
-
 impl<Func, Arg1, Fut> Handler<(Arg1,)> for Func
 where
     Func: Fn(Arg1) -> Fut + Clone + 'static,
@@ -57,18 +37,6 @@ where
         (self)(arg1)
     }
 }
-
-// macro_rules! handler_func{
-//     ($($T: ident),*) => {
-//         impl<Func, $($T),+> Handler<($($T),+)> for Func where Func: Fn($($T),+),
-//         {
-//             #[allow(non_snake_case)]
-//             fn call(&self, ($($T),+): ($($T),+)) {
-//                 (self)($($T),+);
-//             }
-//         }
-//     };
-// }
 
 macro_rules! handler_func{
     ($($T: ident),*) => {
