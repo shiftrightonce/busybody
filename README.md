@@ -156,6 +156,10 @@ async fn double(count: RawType<i32>) -> i32 {
 The [examples](https://github.com/shiftrightonce/busybody/tree/main/examples) folder contains simple and full examples. If none of the examples are helpful,
 please reach out with your use case and I  try to provide one.
 
+
+## Feedback
+If you find this crate useful, please star the repository. Submit your issues and recommendations as well.
+
 ## License
 
 ### The MIT License (MIT)
