@@ -39,7 +39,6 @@ impl busybody::Injectable for HackerNewsClient {
         let config = if let Some(config) = container.get_type::<Config>() {
             config
         } else {
-            dbg!("we are here....");
             busybody::helpers::provide::<Config>().await
         };
 
