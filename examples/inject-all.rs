@@ -1,6 +1,6 @@
 #[tokio::main]
 async fn main() {
-    //1. Using `inject_all` you inject a tuple that has 1 to 17 fields
+    //1. Using `inject_all` you can inject a tuple that has 1 to 17 fields
     let (a,) = busybody::helpers::inject_all::<(TypeA,)>().await;
     println!("a: {:?}", a);
 
