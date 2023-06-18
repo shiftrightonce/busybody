@@ -7,7 +7,7 @@ description = "Service Container and Dependency injector crate"
 repository = "https://github.com/shiftrightonce/busybody"
 rust-version = "1.70"
 keywords = ["webdev", "web", "service-container", "dependency-injection"]
-categories = ["asynchronous", "web", "webdev", "service-container", "dependency-injection"]
+categories = ["asynchronous", "web-programming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
