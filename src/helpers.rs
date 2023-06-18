@@ -15,7 +15,7 @@ where
     F: Handler<Args>,
     Args: Injectable + 'static,
 {
-    let args = Args::inject(SERVICE_CONTAINER.get().unwrap()).await;
+    let args = Args::inject(&service_container()).await;
     handler.call(args).await
 }
 
@@ -25,7 +25,7 @@ pub async fn inject_all<Args>() -> Args
 where
     Args: Injectable + 'static,
 {
-    Args::inject(SERVICE_CONTAINER.get().unwrap()).await
+    Args::inject(&service_container()).await
 }
 
 /// Given a type, this function will try to call the `inject` method
