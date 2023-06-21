@@ -57,7 +57,6 @@
 mod container;
 mod handlers;
 mod injectable;
-mod provider;
 mod service;
 mod singleton;
 
