@@ -55,7 +55,7 @@ impl<T: 'static> Injectable for Service<T> {
         match container.get::<T>() {
             Some(service) => service,
             None => {
-                panic!("Could not find service")
+                panic!("Could not find service: {:?}", std::any::type_name::<T>())
             }
         }
     }
