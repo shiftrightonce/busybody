@@ -3,9 +3,8 @@
 use std::sync::Arc;
 
 use crate::{
-    container::SERVICE_CONTAINER, handlers::Handler, injectable::Injectable,
-    provider::ServiceProvider, service::Service, ServiceContainer, ServiceContainerBuilder,
-    Singleton,
+    container::SERVICE_CONTAINER, handlers::Handler, injectable::Injectable, service::Service,
+    ServiceContainer, ServiceContainerBuilder, Singleton,
 };
 
 /// Takes an async function or closure and executes it
@@ -16,6 +15,17 @@ where
     Args: Injectable + 'static,
 {
     let args = Args::inject(&service_container()).await;
+    handler.call(args).await
+}
+
+/// Takes an async function or closure and executes it
+/// Require arguments are injected during the call
+pub async fn inject_and_call_with<F, Args>(ci: &ServiceContainer, handler: F) -> F::Output
+where
+    F: Handler<Args>,
+    Args: Injectable + 'static,
+{
+    let args = Args::inject(&ci).await;
     handler.call(args).await
 }
 
