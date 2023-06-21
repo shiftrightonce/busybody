@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::service::Service;
+use crate::{helpers::service_container, service::Service, Handler, Injectable, Singleton};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -11,6 +11,7 @@ pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock:
 
 pub struct ServiceContainer {
     services: RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>,
+    in_proxy_mode: bool,
 }
 
 impl Default for ServiceContainer {
@@ -20,10 +21,22 @@ impl Default for ServiceContainer {
 }
 
 impl ServiceContainer {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             services: RwLock::new(HashMap::new()),
+            in_proxy_mode: false,
         }
+    }
+
+    pub fn proxy() -> Self {
+        Self {
+            services: RwLock::new(HashMap::new()),
+            in_proxy_mode: true,
+        }
+    }
+
+    pub fn is_proxy(&self) -> bool {
+        self.in_proxy_mode
     }
 
     pub fn get<T: 'static>(&self) -> Option<Service<T>> {
@@ -39,6 +52,8 @@ impl ServiceContainer {
             if let Some(service) = result {
                 return Some(service.clone());
             }
+        } else if self.in_proxy_mode {
+            return service_container().get_type();
         }
         None
     }
