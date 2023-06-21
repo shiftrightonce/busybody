@@ -41,16 +41,15 @@ where
 /// Given a type, this function will try to call the `inject` method
 /// implemented by the type
 pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
-    ServiceProvider::provide().await
+    service_container().provide().await
 }
 
 /// Given a type, this function will try to find an instance of the type
 /// wrapped in a `Service<T>` that is currently registered in the service
 /// container
 ///
-/// Example
 pub async fn service<T: 'static>() -> Service<T> {
-    ServiceProvider::service().await
+    service_container().service().await
 }
 
 /// Given a type, this function will try to find an existing instance of the
@@ -59,7 +58,7 @@ pub async fn service<T: 'static>() -> Service<T> {
 /// a copy is returned. Subsequent call requesting instance of that type will
 /// return the instance in the service container.
 pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>() -> Singleton<T> {
-    Singleton::inject(&service_container()).await
+    service_container().singleton().await
 }
 
 /// Returns the service container instance
