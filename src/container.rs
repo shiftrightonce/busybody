@@ -72,9 +72,9 @@ impl ServiceContainer {
 
             if let Some(service) = result {
                 return Some(service.clone());
+            } else if self.is_proxy() {
+                return service_container().get_type();
             }
-        } else if self.in_proxy_mode {
-            return service_container().get_type();
         }
         None
     }
