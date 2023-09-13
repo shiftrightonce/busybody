@@ -63,6 +63,32 @@ impl ServiceContainer {
         self.get_type::<Service<T>>()
     }
 
+    /// Tries to find the instance of the type wrapped in Service<T>
+    /// if an instance does not exist, one will be injected
+    pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
+        let result = self.get::<T>();
+
+        if result.is_none() {
+            let instance = T::inject(self).await;
+            return self.set(instance).get::<T>().unwrap();
+        }
+
+        result.unwrap()
+    }
+
+    /// Tries to find the instance of the type T
+    /// if an instance does not exist, one will be injected
+    pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>(&self) -> T {
+        let result = self.get_type::<T>();
+        if result.is_none() {
+            let instance = T::inject(self).await;
+            self.set_type(instance.clone());
+            return instance;
+        }
+
+        result.unwrap()
+    }
+
     /// Tries to find the "raw" instance of the type
     pub fn get_type<T: Clone + 'static>(&self) -> Option<T> {
         if let Ok(services) = self.services.read() {
