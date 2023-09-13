@@ -103,3 +103,32 @@ impl<T: Default + Clone + 'static> Injectable for RawType<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_creating_service() {
+        let service = Service::new(99);
+        assert_eq!(*service, 99);
+    }
+
+    #[tokio::test]
+    async fn test_creating_from_arc() {
+        let service: Service<i32> = Arc::new(7).into();
+        assert_eq!(*service, 7);
+    }
+
+    #[tokio::test]
+    async fn test_creating_from_t() {
+        let service: Service<i32> = 9000.into();
+        assert_eq!(*service, 9000);
+    }
+
+    #[tokio::test]
+    async fn test_raw_type() {
+        let var: RawType<String> = "Hello World".to_string().into();
+        assert_eq!(var.as_str(), "Hello World");
+    }
+}

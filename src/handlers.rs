@@ -1,17 +1,10 @@
 use futures::Future;
 
-// pub trait Handler<Args> {
-//     fn call(&self, args: Args);
-// }
-
-// ----
 pub trait Handler<Args>: Clone + 'static {
     type Output;
     type Future: Future<Output = Self::Output>;
     fn call(&self, args: Args) -> Self::Future;
 }
-
-// ---
 
 impl<Func, Fut> Handler<()> for Func
 where

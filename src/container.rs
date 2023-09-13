@@ -185,3 +185,139 @@ impl ServiceContainerBuilder {
         container.clone()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use async_trait::async_trait;
+
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    struct Counter {
+        start_point: usize,
+    }
+
+    #[async_trait]
+    impl Injectable for Counter {
+        async fn inject(container: &ServiceContainer) -> Self {
+            container
+                .get_type()
+                .unwrap_or_else(|| Counter { start_point: 44 })
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct User {
+        id: i32,
+    }
+
+    #[async_trait]
+    impl Injectable for User {
+        async fn inject(_: &ServiceContainer) -> Self {
+            Self { id: 1000 }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_builder() {
+        let container = ServiceContainerBuilder::new()
+            .service(5usize)
+            .register(true)
+            .build();
+
+        assert_eq!(*container.get::<usize>().unwrap(), 5usize);
+        assert_eq!(container.get_type::<bool>(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_empty_container() {
+        let container = ServiceContainer::new();
+
+        assert_eq!(container.get::<i32>().is_none(), true);
+        assert_eq!(container.get_type::<i32>(), None);
+    }
+
+    #[tokio::test]
+    async fn test_getting_raw_type() {
+        let container = ServiceContainer::new();
+        container.set_type(400);
+        container.set_type(300f32);
+        container.set_type(true);
+
+        assert_eq!(container.get_type::<i32>(), Some(400));
+        assert_eq!(container.get_type::<f32>(), Some(300f32));
+        assert_eq!(container.get_type::<bool>(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_getting_service_type() {
+        let container = ServiceContainer::new();
+        container.set(400);
+        container.set(300f32);
+        container.set(true);
+
+        assert_eq!(*container.get::<i32>().unwrap(), 400);
+        assert_eq!(*container.get::<f32>().unwrap(), 300f32);
+        assert_eq!(*container.get::<bool>().unwrap(), true);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_service() {
+        service_container().set_type(true);
+        let container = ServiceContainer::proxy();
+
+        let is_true: Option<bool> = container.get_type();
+        let an_i32: Option<i32> = container.get_type();
+
+        assert_eq!(is_true, Some(true));
+        assert_eq!(an_i32, None);
+
+        container.set_type(30000);
+        let rate_per_hour: Option<i32> = container.get_type();
+        assert_eq!(rate_per_hour, Some(30000));
+    }
+
+    #[tokio::test]
+    async fn test_injecting() {
+        let container = ServiceContainer::new();
+        let counter = container.inject_all::<Counter>().await;
+
+        assert_eq!(counter.start_point, 44usize);
+    }
+
+    #[tokio::test]
+    async fn test_injecting_stored_instance() {
+        let container = ServiceContainer::new();
+        container.set_type(Counter { start_point: 6000 });
+
+        let counter = container.inject_all::<Counter>().await;
+        assert_eq!(counter.start_point, 6000usize);
+    }
+
+    #[tokio::test]
+    async fn test_singleton() {
+        let container = ServiceContainer::new();
+
+        let user = container.singleton::<User>().await;
+        assert_eq!(user.id, 1000);
+
+        container.set_type(User { id: 88 });
+        let user = container.singleton::<User>().await;
+        assert_eq!(user.id, 1000);
+    }
+
+    #[tokio::test]
+    async fn test_inject_and_call() {
+        let container = ServiceContainer::new();
+
+        let result = container
+            .inject_and_call(|user: User, counter: Counter| async move {
+                assert_eq!(user.id, 1000);
+                assert_eq!(counter.start_point, 44);
+                (1, 2, 3)
+            })
+            .await;
+
+        assert_eq!(result, (1, 2, 3));
+    }
+}
