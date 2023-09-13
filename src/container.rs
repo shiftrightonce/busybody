@@ -346,4 +346,31 @@ mod test {
 
         assert_eq!(result, (1, 2, 3));
     }
+
+    #[tokio::test]
+    async fn test_get_or_inject_raw_type() {
+        let container = ServiceContainer::new();
+        assert_eq!(container.get_type::<User>().is_none(), true);
+
+        let a_user = container.get_type_or_inject::<User>().await;
+        let a_user2 = container.get_type::<User>();
+
+        assert_eq!(a_user.id, 1000);
+        assert_eq!(a_user2.is_some(), true);
+        assert_eq!(a_user2.unwrap().id, a_user.id);
+    }
+
+    #[tokio::test]
+    async fn test_get_or_inject_service_type() {
+        let container = ServiceContainer::new();
+
+        assert_eq!(container.get::<User>().is_none(), true);
+
+        let a_user = container.get_or_inject::<User>().await;
+        let a_user2 = container.get::<User>();
+
+        assert_eq!(a_user.id, 1000);
+        assert_eq!(a_user2.is_some(), true);
+        assert_eq!(a_user2.unwrap().id, a_user.id);
+    }
 }
