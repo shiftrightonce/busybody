@@ -69,3 +69,11 @@ pub fn service_container() -> Arc<ServiceContainer> {
         ServiceContainerBuilder::new().build()
     }
 }
+
+pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> T {
+    service_container().get_type_or_inject().await
+}
+
+pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> Service<T> {
+    service_container().get_or_inject().await
+}
