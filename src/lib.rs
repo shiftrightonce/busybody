@@ -31,17 +31,17 @@
 //! use busybody::*;
 //! use async_trait::async_trait;
 //!
-//! #[derive(Debug)]
+//! #[derive(Debug, Clone)]
 //! struct Config {
 //!   hostname: String
 //! }
 //!
-//! #[busybody::async_trait(?Send)]
+//! #[busybody::async_trait]
 //! impl busybody::Injectable for Config { // implementing "injector" makes your type injectable
 //!
 //!    async fn inject(_: &ServiceContainer) -> Self {
 //!       Self {
-//!           hostname: "localhost".into()
+//!           hostname: "localhost".to_string()
 //!       }
 //!    }
 //!}
