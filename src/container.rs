@@ -88,7 +88,7 @@ impl ServiceContainer {
     }
 
     /// Stores the instance as Service<T>
-    /// You need to use "get" in order to retrive the instance
+    /// You need to use "get" in order to retrieve the instance
     pub fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
         self.set_type(Service::new(ext))
     }
