@@ -25,7 +25,7 @@ where
     F: Handler<Args>,
     Args: Injectable + 'static,
 {
-    let args = Args::inject(&ci).await;
+    let args = Args::inject(ci).await;
     handler.call(args).await
 }
 
