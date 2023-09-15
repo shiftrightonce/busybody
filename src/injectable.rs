@@ -171,3 +171,88 @@ impl Injectable for String {
         c.proxy_value().unwrap_or_default()
     }
 }
+
+#[async_trait]
+impl<T> Injectable for Option<T>
+where
+    T: Injectable + Clone + 'static,
+{
+    async fn inject(c: &ServiceContainer) -> Self {
+        c.proxy_value().unwrap()
+    }
+}
+
+#[async_trait]
+impl<T, E> Injectable for Result<T, E>
+where
+    T: Injectable + Clone + 'static,
+    E: Injectable + Clone + 'static,
+{
+    async fn inject(c: &ServiceContainer) -> Self {
+        c.proxy_value().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[derive(Clone, Debug)]
+    struct Foo;
+
+    #[async_trait::async_trait]
+    impl Injectable for Foo {
+        async fn inject(_: &ServiceContainer) -> Self {
+            Self
+        }
+    }
+
+    #[tokio::test]
+    async fn test_getting_option() {
+        let container = ServiceContainer::new();
+
+        container.set_type(Some(container.provide::<Foo>().await));
+
+        let foo: Option<Option<Foo>> = container.get_type();
+
+        assert_eq!(
+            foo.is_some(),
+            true,
+            "An instance of Option<Option<Foo>> exist"
+        );
+        assert_eq!(
+            foo.is_some(),
+            true,
+            "foo should have been wrapped in a Option<Foo>"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_getting_result() {
+        let container = ServiceContainer::new();
+
+        container.set_type(Ok::<Foo, ()>(container.provide::<Foo>().await));
+
+        let foo: Option<Result<Foo, ()>> = container.get_type();
+
+        assert_eq!(
+            foo.is_some(),
+            true,
+            "An instance of Option<Result<Foo, ()>> exist"
+        );
+
+        assert_eq!(
+            foo.unwrap().is_ok(),
+            true,
+            "foo should have been wrapped in a Result<Foo, ()>"
+        );
+
+        let an_int: Option<Result<i32, ()>> = container.get_type();
+        assert_eq!(
+            an_int.is_some(),
+            false,
+            "Option<Result<i32, ()>> instance does not exist"
+        );
+    }
+}
