@@ -1,6 +1,9 @@
 # Change logs
 
-## Version 1.2.0
+## Version 0.3.0
+- Add the ability to inject Option<T> and Result<T, E> where T is injectable
+
+## Version 0.2.0
 - Implementor of the `injectable` trait must now be `Send`
 
 ```rust
