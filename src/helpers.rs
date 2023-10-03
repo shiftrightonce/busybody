@@ -9,6 +9,7 @@ use crate::{
 
 /// Takes an async function or closure and executes it
 /// Require arguments are injected during the call
+/// The global service container is used for any resolving
 pub async fn inject_and_call<F, Args>(handler: F) -> F::Output
 where
     F: Handler<Args>,
@@ -18,8 +19,9 @@ where
     handler.call(args).await
 }
 
-/// Takes an async function or closure and executes it
-/// Require arguments are injected during the call
+/// Takes an async function or closure and executes it.
+/// Require arguments are injected during the call.
+/// The container to use is provided by the caller.
 pub async fn inject_and_call_with<F, Args>(ci: &ServiceContainer, handler: F) -> F::Output
 where
     F: Handler<Args>,
@@ -30,7 +32,8 @@ where
 }
 
 /// Given a tuple of types, this function will try to resolve them
-/// and return a tuple of instances
+/// and return a tuple of instances.
+/// The global service container is used.
 pub async fn inject_all<Args>() -> Args
 where
     Args: Injectable + 'static,
@@ -38,16 +41,26 @@ where
     Args::inject(&service_container()).await
 }
 
+/// Given a tuple of types, this function will try to resolve them
+/// and return a tuple of instances.
+/// The service container to used is provided by the caller.
+pub async fn inject_all_with<Args>(container: &ServiceContainer) -> Args
+where
+    Args: Injectable + 'static,
+{
+    Args::inject(container).await
+}
+
 /// Given a type, this function will try to call the `inject` method
-/// implemented by the type
+/// implemented by the type.
 pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
     service_container().provide().await
 }
 
 /// Given a type, this function will try to find an instance of the type
 /// wrapped in a `Service<T>` that is currently registered in the service
-/// container
-///
+/// container.
+/// The global service container is used as the resolver.
 pub async fn service<T: 'static>() -> Service<T> {
     service_container().service().await
 }
@@ -57,11 +70,12 @@ pub async fn service<T: 'static>() -> Service<T> {
 /// initialized, wrapped in a `Service`, stored in the service container and
 /// a copy is returned. Subsequent call requesting instance of that type will
 /// return the instance in the service container.
+/// The global service container is used as the resolver.
 pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>() -> Singleton<T> {
     service_container().singleton().await
 }
 
-/// Returns the service container instance
+/// Returns the global service container instance
 pub fn service_container() -> Arc<ServiceContainer> {
     if let Some(container) = SERVICE_CONTAINER.get() {
         container.clone()
@@ -70,10 +84,55 @@ pub fn service_container() -> Arc<ServiceContainer> {
     }
 }
 
+/// Tries to get an instance of the type if one exist in the container.
+/// If one does not exist, it tries to do an injection
 pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> T {
     service_container().get_type_or_inject().await
 }
 
+/// Tries to get an instance of the type if one exist in the container.
+/// If one does not exist, it tries to do an injection.
+/// The container to used is provided by the caller
+pub async fn get_type_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
+    container: &ServiceContainer,
+) -> T {
+    container.get_type_or_inject().await
+}
+
+/// Tries to get an instance of the type wrapped in a Service<T> from the container.
+/// If one does not exist, it tries to do an injection
 pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> Service<T> {
     service_container().get_or_inject().await
+}
+
+/// Tries to get an instance of the type wrapped in a Service<T> from the container.
+/// If one does not exist, it tries to do an injection.
+/// The container to used is provided by the caller
+pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
+    container: &ServiceContainer,
+) -> Service<T> {
+    container.get_or_inject().await
+}
+
+/// Register a service instance
+/// The instance is registered with the global service container
+pub fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+    let container = service_container();
+    container.set(ext);
+
+    container
+}
+
+/// Register a type instance
+/// The instance is registered with the global service container
+pub fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+    let container = service_container();
+    container.set_type(ext);
+
+    container
+}
+
+/// Returns a new proxy service container
+pub fn make_proxy() -> ServiceContainer {
+    ServiceContainer::proxy()
 }

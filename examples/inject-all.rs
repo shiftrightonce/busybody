@@ -8,9 +8,13 @@ async fn main() {
     let (a, b) = busybody::helpers::inject_all::<(TypeA, TypeB)>().await;
     println!("a: {:?}, b: {:?}", a, b);
 
-    // 2. tuple with three fields
+    // 3. tuple with three fields
     let (a, c, b) = busybody::helpers::inject_all::<(TypeA, TypeC, TypeB)>().await;
     println!("a: {:?}, b: {:?}, c: {:?}", a, b, c);
+
+    // 4. a complex type
+    let group: GroupOfABC = busybody::helpers::inject_all().await;
+    println!("GroupOfABC instance: {:#?}", group);
 }
 
 #[derive(Debug)]
@@ -40,5 +44,24 @@ struct TypeC;
 impl busybody::Injectable for TypeC {
     async fn inject(_: &busybody::ServiceContainer) -> Self {
         Self
+    }
+}
+
+#[derive(Debug)]
+#[allow(dead_code)] // We are not using the struct fields
+struct GroupOfABC {
+    a: TypeA,
+    b: TypeB,
+    c: TypeC,
+}
+
+#[busybody::async_trait]
+impl busybody::Injectable for GroupOfABC {
+    async fn inject(container: &busybody::ServiceContainer) -> Self {
+        Self {
+            a: container.provide().await,
+            b: container.provide().await,
+            c: container.provide().await,
+        }
     }
 }

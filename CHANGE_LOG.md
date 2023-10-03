@@ -12,7 +12,7 @@ impl busybody::Injectable for SomeType {
     async fn inject(container: &ServiceContainer) -> Self {
       // You can do one or all of the following:
 
-      // 1. Using the container fetch a registered service
+      // 1. Using the container to fetch a registered service
       // 2. Use "provide", "service" or "singleton" helpers to inject an instance of a type
       // 3. Fetch an instance of this type from the service container
 

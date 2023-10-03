@@ -23,6 +23,9 @@ fn main() {
         .service(connection)
         .build();
 
+    //1b. Or user the helper function
+    helpers::service_container().set_type(99usize);
+
     // 2. Get things from the container
     let meaning = container.get_type::<i32>();
     let client = container.get::<DbClient>();
@@ -35,5 +38,9 @@ fn main() {
     println!(
         "redis client: {:#?}",
         container.get::<RedisClient>().unwrap()
-    ) // Get back the wrapped type
+    ); // Get back the wrapped type
+    println!(
+        "get back the usize: {:#?}",
+        helpers::service_container().get_type::<usize>()
+    );
 }

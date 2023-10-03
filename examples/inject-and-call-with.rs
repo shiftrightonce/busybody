@@ -16,7 +16,12 @@ async fn main() {
     // 3. Using `inject_and_call_with`, the proxy container is used as the first source
     //    of dependencies resolving
     let new_sales_order = helpers::inject_and_call_with(&container, make_sales_order).await;
-    println!("first sales order created: {:#?}", new_sales_order);
+    println!("first proxy sales order created: {:#?}", new_sales_order);
+
+    // 4. Or use the proxy container directly.
+    //    Anywhere a service container is required, a proxy container can be used.
+    container.inject_and_call(make_sales_order).await;
+    println!("second proxy sales order created: {:#?}", new_sales_order);
 }
 
 // 3. make_sales_order expect an instance of SalesOrder, the IdGenerator as a singleton and an instance of ShippingAndHandling
