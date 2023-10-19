@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "busybody"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "actix-web",
  "async-trait",
