@@ -1,10 +1,30 @@
-use crate::container::ServiceContainer;
+use crate::{container::ServiceContainer, helpers::service_container};
 use async_trait::async_trait;
 use futures::join;
 
 #[async_trait]
 pub trait Injectable {
+    /// The required method that makes a type injectable
     async fn inject(container: &ServiceContainer) -> Self;
+
+    /// Injects and return a concret instance of the injectable type
+    /// The global service container is used
+    async fn instance() -> Self
+    where
+        Self: Sized,
+    {
+        let container = service_container();
+        Self::inject(&container).await
+    }
+
+    /// Injects and returns a concret instance of the injectable type
+    /// The provided container will be used
+    async fn instance_with(container: &ServiceContainer) -> Self
+    where
+        Self: Sized,
+    {
+        Self::inject(&container).await
+    }
 }
 
 // Zero argument
