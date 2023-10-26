@@ -1,6 +1,6 @@
 use futures::Future;
 
-pub trait Handler<Args>: Clone + 'static {
+pub trait Handler<Args> {
     type Output;
     type Future: Future<Output = Self::Output>;
     fn call(&self, args: Args) -> Self::Future;
@@ -8,7 +8,7 @@ pub trait Handler<Args>: Clone + 'static {
 
 impl<Func, Fut> Handler<()> for Func
 where
-    Func: Fn() -> Fut + Clone + 'static,
+    Func: Fn() -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
@@ -21,7 +21,7 @@ where
 // 1 Argument
 impl<Func, Arg1, Fut> Handler<(Arg1,)> for Func
 where
-    Func: Fn(Arg1) -> Fut + Clone + 'static,
+    Func: Fn(Arg1) -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
@@ -33,7 +33,7 @@ where
 
 macro_rules! handler_func{
     ($($T: ident),*) => {
-        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: Fn($($T),+) -> Fut + Clone + 'static,
+        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: Fn($($T),+) -> Fut + 'static,
         Fut: Future,
         {
             type Output = Fut::Output;
