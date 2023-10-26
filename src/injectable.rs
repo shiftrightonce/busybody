@@ -23,7 +23,7 @@ pub trait Injectable {
     where
         Self: Sized,
     {
-        Self::inject(&container).await
+        Self::inject(container).await
     }
 }
 
