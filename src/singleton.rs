@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 use crate::{container::ServiceContainer, injectable::Injectable, service::Service};
 use async_trait::async_trait;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
 pub struct Singleton<T: Injectable>(Service<T>);
@@ -39,6 +39,12 @@ impl<T: Injectable + Sized> Deref for Singleton<T> {
 
     fn deref(&self) -> &Service<T> {
         &self.0
+    }
+}
+
+impl<T: Injectable + Sized> DerefMut for Singleton<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
