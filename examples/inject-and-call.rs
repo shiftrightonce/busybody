@@ -26,9 +26,6 @@ async fn main() {
 }
 
 // 4. Function is taken an I32.
-//    RawType<T> tries to find an instance of the specified type. If none exist,
-//    it uses the `default` associate method to create a default instance of the Type.
-//    This means, the "T" in RawType must implement the `Default` trait.
-async fn double(count: RawType<i32>) -> i32 {
-    *count * 2
+async fn double(count: i32) -> i32 {
+    count * 2
 }

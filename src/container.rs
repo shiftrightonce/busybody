@@ -58,12 +58,12 @@ impl ServiceContainer {
         }
     }
 
-    /// Tries to find the instance of the type wrapped in Service<T>
+    /// Tries to find the instance of the type wrapped in `Service<T>`
     pub fn get<T: 'static>(&self) -> Option<Service<T>> {
         self.get_type::<Service<T>>()
     }
 
-    /// Tries to find the instance of the type wrapped in Service<T>
+    /// Tries to find the instance of the type wrapped in `Service<T>`
     /// if an instance does not exist, one will be injected
     pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
         let result = self.get::<T>();
@@ -113,7 +113,7 @@ impl ServiceContainer {
         self
     }
 
-    /// Stores the instance as Service<T>
+    /// Stores the instance as `Service<T>`
     /// You need to use "get" in order to retrieve the instance
     pub fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
         self.set_type(Service::new(ext))

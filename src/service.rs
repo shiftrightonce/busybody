@@ -2,7 +2,10 @@
 
 use crate::{container::ServiceContainer, injectable::Injectable};
 use async_trait::async_trait;
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 #[derive(Debug)]
 pub struct Service<T: ?Sized>(Arc<T>);
@@ -85,6 +88,12 @@ impl<T: Sized> Deref for RawType<T> {
 
     fn deref(&self) -> &T {
         &self.0
+    }
+}
+
+impl<T: Sized> DerefMut for RawType<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

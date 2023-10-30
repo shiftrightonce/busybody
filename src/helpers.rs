@@ -99,13 +99,13 @@ pub async fn get_type_or_inject_with<T: Injectable + Clone + Send + Sync + 'stat
     container.get_type_or_inject().await
 }
 
-/// Tries to get an instance of the type wrapped in a Service<T> from the container.
+/// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection
 pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> Service<T> {
     service_container().get_or_inject().await
 }
 
-/// Tries to get an instance of the type wrapped in a Service<T> from the container.
+/// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection.
 /// The container to used is provided by the caller
 pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
