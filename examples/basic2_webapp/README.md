@@ -1,7 +1,8 @@
 # Basic2 webapp
+
 ---
 
-**This example illustrates how instances of types can be automatically injected/provided**
+This example illustrates how instances of types can be automatically injected/provided
 
 The application is displaying the server uptime like in `basic_webapp` example and the time it took for routes handler to execute a "task".
 
