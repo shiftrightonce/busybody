@@ -46,6 +46,12 @@ async fn main() {
         singleton_fetcher.id,
         singleton_fetcher.fetch().await
     );
+
+    // inject a singleton
+    helpers::inject_and_call(|fetcher: Singleton<DailyInvoicesFetcher>| async move {
+        use_fetcher(&fetcher).await;
+    })
+    .await;
 }
 
 #[derive(Debug)]
@@ -85,4 +91,8 @@ impl Injectable for DailyInvoicesFetcher {
             id: rng.gen(),
         } // Create a new instance for each call
     }
+}
+
+async fn use_fetcher(fetcher: &DailyInvoicesFetcher) {
+    fetcher.fetch().await;
 }
