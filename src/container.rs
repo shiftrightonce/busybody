@@ -63,6 +63,26 @@ impl ServiceContainer {
         self.get_type::<Service<T>>()
     }
 
+    pub fn forget_type<T: 'static>(&self) -> Option<Box<T>> {
+        if let Ok(mut services) = self.services.write() {
+            let result: Option<Box<T>> = services
+                .remove(&TypeId::of::<T>())
+                .and_then(|b| b.downcast().ok());
+            if result.is_some() {
+                return result;
+            }
+            if self.is_proxy() {
+                return service_container().forget_type();
+            }
+        }
+
+        None
+    }
+
+    pub fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
+        self.forget_type()
+    }
+
     /// Tries to find the instance of the type wrapped in `Service<T>`
     /// if an instance does not exist, one will be injected
     pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
