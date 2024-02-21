@@ -393,4 +393,34 @@ mod test {
         assert_eq!(a_user2.is_some(), true);
         assert_eq!(a_user2.unwrap().id, a_user.id);
     }
+
+    #[tokio::test]
+    async fn test_forgetting_a_type() {
+        let container = ServiceContainer::new();
+
+        assert_eq!(container.get_type::<usize>(), None);
+
+        container.set_type(300_usize);
+        assert_eq!(container.get_type::<usize>(), Some(300_usize));
+
+        let value = container.forget_type::<usize>();
+        assert_eq!(value.is_some(), true);
+
+        assert_eq!(container.get_type::<usize>(), None);
+    }
+
+    #[tokio::test]
+    async fn test_forgetting_service_a_type() {
+        let container = ServiceContainer::new();
+
+        assert_eq!(container.get::<usize>().is_none(), true);
+
+        container.set(300_usize);
+        assert_eq!(*container.get::<usize>().unwrap(), 300_usize);
+
+        let value = container.forget::<usize>();
+        assert_eq!(value.is_some(), true);
+
+        assert_eq!(container.get::<usize>().is_none(), true);
+    }
 }
