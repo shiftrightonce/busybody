@@ -12,11 +12,11 @@ categories = ["asynchronous", "web-programming"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3.28"
-async-trait = "0.1.73"
+futures = "0.3"
+async-trait = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1.32.0", features = ["full"] }
+tokio = { version = "1.36", features = ["full"] }
 actix-web = { version = "4" }
-rand = { version = "0.8.5" }
-uuid = { version = "1.4.1", features = ["v4"] }
+rand = { version = "0.8" }
+uuid = { version = "1", features = ["v4"] }
