@@ -53,6 +53,7 @@ where
 
 /// Given a type, this function will try to call the `inject` method
 /// implemented by the type.
+/// This function uses the global container
 pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
     service_container().provide().await
 }
@@ -100,12 +101,32 @@ pub async fn get_type_or_inject_with<T: Injectable + Clone + Send + Sync + 'stat
 }
 
 /// Tries to get an instance of the type if one exist in the container
+/// This function uses the global container
 pub fn get_type<T: Clone + 'static>() -> Option<T> {
     service_container().get_type()
 }
 
+/// Tries to get an instance of the type's service if one exist in the container
+/// This function uses the global container
+pub fn get_service<T: Clone + 'static>() -> Option<Service<T>> {
+    service_container().get_type()
+}
+
+/// Removes the registered instance of the type specified and returns it
+/// This function uses the global container
+pub fn forget_type<T: 'static>() -> Option<Box<T>> {
+    service_container().forget_type()
+}
+
+/// Removes the registered service instance of the type specified and returns it
+/// This function uses the global container
+pub fn forget<T: 'static>() -> Option<Box<Service<T>>> {
+    service_container().forget()
+}
+
 /// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection
+/// This function uses the global container
 pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> Service<T> {
     service_container().get_or_inject().await
 }
@@ -113,6 +134,7 @@ pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> S
 /// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection.
 /// The container to used is provided by the caller
+/// This function uses the global container
 pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
     container: &ServiceContainer,
 ) -> Service<T> {
@@ -121,6 +143,7 @@ pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
 
 /// Register a service instance
 /// The instance is registered with the global service container
+/// This function uses the global container
 pub fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
     container.set(ext);
@@ -130,6 +153,7 @@ pub fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
 
 /// Register a type instance
 /// The instance is registered with the global service container
+/// This function uses the global container
 pub fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
     container.set_type(ext);
