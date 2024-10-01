@@ -14,4 +14,18 @@ async fn main() {
     let value = busybody::helpers::forget_type::<i32>();
 
     println!("No registered i32 type: {:#?}", value);
+
+    busybody::helpers::set_type(4000); // i32 value set on the global container
+
+    let proxy_container = busybody::helpers::make_proxy();
+    proxy_container.set_type(42); // i32 value set in a proxy container
+
+    println!(
+        "remove proxy i32 value: {:?}",
+        proxy_container.forget_type::<i32>()
+    );
+    println!(
+        "global i32 value: {:?}",
+        busybody::helpers::forget_type::<i32>()
+    );
 }

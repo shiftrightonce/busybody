@@ -68,12 +68,7 @@ impl ServiceContainer {
             let result: Option<Box<T>> = services
                 .remove(&TypeId::of::<T>())
                 .and_then(|b| b.downcast().ok());
-            if result.is_some() {
-                return result;
-            }
-            if self.is_proxy() {
-                return service_container().forget_type();
-            }
+            return result;
         }
 
         None
