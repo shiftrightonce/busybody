@@ -161,6 +161,17 @@ pub fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceCon
     container
 }
 
+/// Register a type instance
+/// Same as `register_type`
+/// The instance is registered with the global service container
+/// This function uses the global container
+pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+    let container = service_container();
+    container.set_type(ext);
+
+    container
+}
+
 /// Returns a new proxy service container
 pub fn make_proxy() -> ServiceContainer {
     ServiceContainer::proxy()
