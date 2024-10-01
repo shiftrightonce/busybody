@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.10] - 2024-10-01
+
+### Bug Fixes
+
+- Fix a bug that remove type from global container
+
+### Features
+
+- Add `set_type` function the helpers
+
+## [0.3.9] - 2024-07-25
+
+### Bug Fixes
+
+- Update openssl version
+
 ## [0.3.0] - 2024-02-21
 
 ### Bug Fixes
