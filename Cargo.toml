@@ -1,6 +1,6 @@
 [package]
 name = "busybody"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 license = "MIT"
 description = "Service Container and Dependency injector crate"
@@ -16,7 +16,7 @@ futures = "0.3"
 async-trait = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1.36", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 actix-web = { version = "4" }
 rand = { version = "0.8" }
 uuid = { version = "1", features = ["v4"] }
