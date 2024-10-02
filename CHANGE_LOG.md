@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.11] - 2024-10-02
+
+### Bug Fixes
+
+- Remove unnecessary `Clone` bound
+
+### Testing
+
+- Add test to make sure one can clone a service
+
 ## [0.3.10] - 2024-10-01
 
 ### Bug Fixes
