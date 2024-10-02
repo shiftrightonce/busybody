@@ -418,4 +418,16 @@ mod test {
 
         assert_eq!(container.get::<usize>().is_none(), true);
     }
+
+    async fn test_service_without_clone_type() {
+        struct UserName(String);
+
+        let container = ServiceContainer::proxy();
+        container.set(UserName("foobar".to_string()));
+
+        let result: Option<Service<_>> = container.get::<UserName>();
+
+        assert_eq!(true, result.is_some());
+        assert_eq!("foobar", result.unwrap().get_ref().0);
+    }
 }
