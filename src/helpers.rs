@@ -108,7 +108,7 @@ pub fn get_type<T: Clone + 'static>() -> Option<T> {
 
 /// Tries to get an instance of the type's service if one exist in the container
 /// This function uses the global container
-pub fn get_service<T: Clone + 'static>() -> Option<Service<T>> {
+pub fn get_service<T: 'static>() -> Option<Service<T>> {
     service_container().get_type()
 }
 
@@ -127,7 +127,7 @@ pub fn forget<T: 'static>() -> Option<Box<Service<T>>> {
 /// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection
 /// This function uses the global container
-pub async fn get_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> Service<T> {
+pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>() -> Service<T> {
     service_container().get_or_inject().await
 }
 
