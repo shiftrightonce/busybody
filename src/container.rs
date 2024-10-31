@@ -23,7 +23,7 @@ impl Default for ServiceContainer {
 impl ServiceContainer {
     pub(crate) fn new() -> Self {
         Self {
-            services: RwLock::new(HashMap::new()),
+            services: RwLock::default(),
             in_proxy_mode: false,
         }
     }
@@ -37,7 +37,7 @@ impl ServiceContainer {
     /// a specific scope
     pub fn proxy() -> Self {
         Self {
-            services: RwLock::new(HashMap::new()),
+            services: RwLock::default(),
             in_proxy_mode: true,
         }
     }
