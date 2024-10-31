@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.12] - 2024-10-31
+
+### Features
+
+- Defer the creation of the hashmap till needed
+
 ## [0.3.11] - 2024-10-02
 
 ### Bug Fixes
