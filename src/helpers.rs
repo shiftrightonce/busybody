@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use futures::future::BoxFuture;
+
 use crate::{
     container::SERVICE_CONTAINER, handlers::Handler, injectable::Injectable, service::Service,
     ServiceContainer, ServiceContainerBuilder, Singleton,
@@ -170,6 +172,30 @@ pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
     container.set_type(ext);
 
     container
+}
+
+/// Registers a closure that will be call each time
+/// an instance of the spcified type is requested
+/// This closure will override existing closure for this type
+pub fn lazy<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+) -> Arc<ServiceContainer> {
+    let conatiner = service_container();
+    conatiner.lazy(callback);
+
+    conatiner
+}
+
+/// Registers a closure that will be call each time
+/// an instance of the spcified type is requested
+/// If a closure alreay registered for this type, this one will be ignore
+pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+) -> Arc<ServiceContainer> {
+    let conatiner = service_container();
+    conatiner.soft_lazy(callback);
+
+    conatiner
 }
 
 /// Returns a new proxy service container

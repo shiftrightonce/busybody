@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use futures::{executor::block_on, future::BoxFuture};
+
 use crate::{helpers::service_container, service::Service, Handler, Injectable, Singleton};
 use std::{
     any::{Any, TypeId},
@@ -9,8 +11,19 @@ use std::{
 
 pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
 
+type LazyCollection = HashMap<
+    TypeId,
+    Box<
+        dyn FnMut(&ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
+            + Sync
+            + Send
+            + 'static,
+    >,
+>;
+
 pub struct ServiceContainer {
     services: RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>,
+    lazy: RwLock<LazyCollection>,
     in_proxy_mode: bool,
 }
 
@@ -24,6 +37,7 @@ impl ServiceContainer {
     pub(crate) fn new() -> Self {
         Self {
             services: RwLock::default(),
+            lazy: RwLock::default(),
             in_proxy_mode: false,
         }
     }
@@ -38,6 +52,7 @@ impl ServiceContainer {
     pub fn proxy() -> Self {
         Self {
             services: RwLock::default(),
+            lazy: RwLock::default(),
             in_proxy_mode: true,
         }
     }
@@ -111,11 +126,19 @@ impl ServiceContainer {
                 .get(&TypeId::of::<T>())
                 .and_then(|b| b.downcast_ref());
 
-            if let Some(service) = result {
-                return Some(service.clone());
-            } else if self.is_proxy() {
-                return service_container().get_type();
+            if result.is_some() {
+                return result.cloned();
             }
+        }
+
+        if let Ok(mut lazies) = self.lazy.write() {
+            if let Some(callack) = lazies.get_mut(&TypeId::of::<T>()) {
+                return block_on(callack(self)).downcast_ref::<T>().cloned();
+            }
+        }
+
+        if self.is_proxy() {
+            return service_container().get_type();
         }
         None
     }
@@ -132,6 +155,43 @@ impl ServiceContainer {
     /// You need to use "get" in order to retrieve the instance
     pub fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
         self.set_type(Service::new(ext))
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the spcified type is requested
+    /// This closure will override existing closure for this type
+    pub fn lazy<T: Clone + Send + Sync + 'static>(
+        &self,
+        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> &Self {
+        if let Ok(mut lazies) = self.lazy.write() {
+            lazies.insert(
+                TypeId::of::<T>(),
+                Box::new(move |c| {
+                    let f = (callback)(c);
+                    Box::pin(
+                        async move { Box::new(f.await) as Box<dyn Any + Send + Sync + 'static> },
+                    )
+                }),
+            );
+        }
+        self
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the spcified type is requested
+    /// If a closure alreay registered for this type, this one will be ignore
+    pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
+        &self,
+        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> &Self {
+        if let Ok(lazies) = self.lazy.read() {
+            if let Some(_) = lazies.get(&TypeId::of::<T>()) {
+                return self;
+            }
+        }
+
+        self.lazy(callback)
     }
 
     /// Takes an async function or closure and executes it
@@ -186,6 +246,7 @@ impl ServiceContainer {
 }
 pub struct ServiceContainerBuilder {
     items: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
+    lazy: LazyCollection,
 }
 
 impl Default for ServiceContainerBuilder {
@@ -198,12 +259,44 @@ impl ServiceContainerBuilder {
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
+            lazy: HashMap::new(),
         }
     }
 
     pub fn register<T: Clone + Send + Sync + 'static>(mut self, ext: T) -> Self {
         self.items.insert(TypeId::of::<T>(), Box::new(ext));
         self
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the spcified type is requested
+    /// This closure will override existing closure for this type
+    pub fn lazy<T: Clone + Send + Sync + 'static>(
+        mut self,
+        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> Self {
+        self.lazy.insert(
+            TypeId::of::<T>(),
+            Box::new(move |c| {
+                let f = (callback)(c);
+                Box::pin(async move { Box::new(f.await) as Box<dyn Any + Send + Sync + 'static> })
+            }),
+        );
+        self
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the spcified type is requested
+    /// If a closure alreay registered for this type, this one will be ignore
+    pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
+        self,
+        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> Self {
+        if let Some(_) = self.lazy.get(&TypeId::of::<T>()) {
+            return self;
+        }
+
+        self.lazy(callback)
     }
 
     /// T is wrapped in a `Service`
@@ -221,6 +314,11 @@ impl ServiceContainerBuilder {
         if let Ok(mut services) = container.services.write() {
             for (k, v) in self.items {
                 services.insert(k, v);
+            }
+        }
+        if let Ok(mut lazies) = container.lazy.write() {
+            for (k, v) in self.lazy {
+                lazies.insert(k, v);
             }
         }
         container.clone()
@@ -419,6 +517,7 @@ mod test {
         assert_eq!(container.get::<usize>().is_none(), true);
     }
 
+    #[tokio::test]
     async fn test_service_without_clone_type() {
         struct UserName(String);
 
@@ -429,5 +528,39 @@ mod test {
 
         assert_eq!(true, result.is_some());
         assert_eq!("foobar", result.unwrap().get_ref().0);
+    }
+
+    #[tokio::test]
+    async fn test_lazy() {
+        let container = ServiceContainer::proxy();
+
+        container.lazy::<String>(|_| Box::pin(async { "foo".to_string() }));
+
+        assert_eq!(container.get_type::<String>(), Some("foo".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_lazy_load_once() {
+        let container = ServiceContainer::proxy();
+
+        #[derive(Debug, Clone, PartialEq)]
+        struct Special(String);
+
+        container.lazy::<Special>(|c| {
+            let cc = Box::pin(c);
+            Box::pin(async move {
+                if let Some(e) = cc.get_type::<Special>() {
+                    return Special(format!("existing {}", e.0));
+                }
+                let x = Special("foo".to_string());
+                cc.set_type(x);
+                cc.get_type().unwrap()
+            })
+        });
+
+        assert_eq!(
+            container.get_type::<Special>(),
+            Some(Special("foo".to_string()))
+        );
     }
 }
