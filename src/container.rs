@@ -286,7 +286,7 @@ impl ServiceContainer {
     /// returned the stored copy. If the this is a proxy container, the instance will be dropped when
     /// this container goes out of scope.
     pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>(&self) -> Singleton<T> {
-        Singleton::inject(self).await.unwrap()
+        Singleton::inject(self).await
     }
 }
 pub struct ServiceContainerBuilder {
