@@ -11,10 +11,10 @@ use std::{
 
 pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
 
-type LazyCollection = HashMap<
+type ResolverCollection = HashMap<
     TypeId,
     Box<
-        dyn FnMut(&ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
+        dyn Fn(Arc<ServiceContainer>) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
             + Sync
             + Send
             + 'static,
@@ -23,7 +23,7 @@ type LazyCollection = HashMap<
 
 pub struct ServiceContainer {
     services: RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>,
-    lazy: RwLock<LazyCollection>,
+    resolvers: RwLock<ResolverCollection>,
     in_proxy_mode: bool,
 }
 
@@ -37,7 +37,7 @@ impl ServiceContainer {
     pub(crate) fn new() -> Self {
         Self {
             services: RwLock::default(),
-            lazy: RwLock::default(),
+            resolvers: RwLock::default(),
             in_proxy_mode: false,
         }
     }
@@ -52,7 +52,7 @@ impl ServiceContainer {
     pub fn proxy() -> Self {
         Self {
             services: RwLock::default(),
-            lazy: RwLock::default(),
+            resolvers: RwLock::default(),
             in_proxy_mode: true,
         }
     }
@@ -131,9 +131,13 @@ impl ServiceContainer {
             }
         }
 
-        if let Ok(mut lazies) = self.lazy.write() {
-            if let Some(callack) = lazies.get_mut(&TypeId::of::<T>()) {
-                return block_on(callack(self)).downcast_ref::<T>().cloned();
+        if let Ok(lazies) = self.resolvers.read() {
+            if let Some(callback) = lazies.get(&TypeId::of::<T>()) {
+                let fut = callback(helpers::service_container());
+                drop(lazies);
+                return block_in_place(|| Handle::current().block_on(async move { fut.await }))
+                    .downcast_ref::<T>()
+                    .cloned();
             }
         }
 
@@ -158,13 +162,17 @@ impl ServiceContainer {
     }
 
     /// Registers a closure that will be call each time
-    /// an instance of the spcified type is requested
+    /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
-    pub fn lazy<T: Clone + Send + Sync + 'static>(
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container.
+    ///       
+    pub fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> &Self {
-        if let Ok(mut lazies) = self.lazy.write() {
+        if let Ok(mut lazies) = self.resolvers.write() {
             lazies.insert(
                 TypeId::of::<T>(),
                 Box::new(move |c| {
@@ -179,19 +187,53 @@ impl ServiceContainer {
     }
 
     /// Registers a closure that will be call each time
-    /// an instance of the spcified type is requested
-    /// If a closure alreay registered for this type, this one will be ignore
-    pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
+    /// an instance of the specified type is requested
+    /// This closure will override existing closure for this type
+    ///
+    /// The returned instance will be store in the global service container
+    /// and subsequent request for this type will resolve to that copy.
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn resolve_once<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> &Self {
-        if let Ok(lazies) = self.lazy.read() {
+        if let Ok(mut lazies) = self.resolvers.write() {
+            lazies.insert(
+                TypeId::of::<T>(),
+                Box::new(move |c| {
+                    let f = (callback)(c.clone());
+                    Box::pin(async move {
+                        let value = c.set_type::<T>(f.await).get_type::<T>().unwrap();
+                        Box::new(value) as Box<dyn Any + Send + Sync + 'static>
+                    })
+                }),
+            );
+        }
+        self
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the specified type is requested
+    /// If a closure already registered for this type, this one will be ignore
+    ///
+    /// The returned instance will be store in the global service container
+    /// and subsequent request for this type will resolve to that copy.
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn soft_resolve_once<T: Clone + Send + Sync + 'static>(
+        &self,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> &Self {
+        if let Ok(lazies) = self.resolvers.read() {
             if let Some(_) = lazies.get(&TypeId::of::<T>()) {
                 return self;
             }
         }
 
-        self.lazy(callback)
+        self.resolve_once(callback)
     }
 
     /// Takes an async function or closure and executes it
@@ -217,36 +259,39 @@ impl ServiceContainer {
     where
         Args: Injectable + 'static,
     {
-        Args::inject(self).await
+        Args::inject(self).await.unwrap()
     }
 
     /// Given a type, this method will try to call the `inject` method
     /// implemented on the type. It does not check the container for existing
     /// instance.
-    pub async fn provide<T: Injectable + Send + Sync + 'static>(&self) -> T {
-        T::inject(self).await
+    pub async fn provide<T: Injectable + 'static>(&self) -> T {
+        T::inject(self).await.expect(&format!(
+            "could not 'provide' type : {}",
+            std::any::type_name::<T>()
+        ))
     }
 
     /// Given a type, this method will try to find an instance of the type
     /// wrapped in a `Service<T>` that is currently registered in the service
     /// container.
     pub async fn service<T: 'static>(&self) -> Service<T> {
-        Service::inject(self).await
+        Service::inject(self).await.unwrap()
     }
 
     /// Given a type, this method will try to find an existing instance of the
     /// type. If that fails, an instance of the type is
     /// initialized, wrapped in a `Service`, stored and
-    /// a copy is returned. Subsequent call requesting instance of that type will
-    /// returned. If the this is a proxy container, the instance will be dropped with
+    /// a copy is returned. Subsequent calls requesting instance of that type will
+    /// returned the stored copy. If the this is a proxy container, the instance will be dropped when
     /// this container goes out of scope.
     pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>(&self) -> Singleton<T> {
-        Singleton::inject(self).await
+        Singleton::inject(self).await.unwrap()
     }
 }
 pub struct ServiceContainerBuilder {
     items: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
-    lazy: LazyCollection,
+    resolvers: ResolverCollection,
 }
 
 impl Default for ServiceContainerBuilder {
@@ -259,7 +304,7 @@ impl ServiceContainerBuilder {
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
-            lazy: HashMap::new(),
+            resolvers: HashMap::new(),
         }
     }
 
@@ -269,13 +314,16 @@ impl ServiceContainerBuilder {
     }
 
     /// Registers a closure that will be call each time
-    /// an instance of the spcified type is requested
+    /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
-    pub fn lazy<T: Clone + Send + Sync + 'static>(
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn resolver<T: Clone + Send + Sync + 'static>(
         mut self,
-        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
-        self.lazy.insert(
+        self.resolvers.insert(
             TypeId::of::<T>(),
             Box::new(move |c| {
                 let f = (callback)(c);
@@ -286,17 +334,67 @@ impl ServiceContainerBuilder {
     }
 
     /// Registers a closure that will be call each time
-    /// an instance of the spcified type is requested
-    /// If a closure alreay registered for this type, this one will be ignore
-    pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
-        self,
-        callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    /// an instance of the specified type is requested
+    /// This closure will override existing closure for this type
+    ///
+    /// The returned instance will be store in the global service container
+    /// and subsequent request for this type will resolve to that copy.
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn resolve_once<T: Clone + Send + Sync + 'static>(
+        mut self,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
-        if let Some(_) = self.lazy.get(&TypeId::of::<T>()) {
+        self.resolvers.insert(
+            TypeId::of::<T>(),
+            Box::new(move |c| {
+                let f = (callback)(c.clone());
+                Box::pin(async move {
+                    let value = c.set_type::<T>(f.await).get_type::<T>().unwrap();
+                    Box::new(value) as Box<dyn Any + Send + Sync + 'static>
+                })
+            }),
+        );
+        self
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the specified type is requested
+    /// If a closure already registered for this type, this one will be ignore
+    ///
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
+        self,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> Self {
+        if let Some(_) = self.resolvers.get(&TypeId::of::<T>()) {
             return self;
         }
 
-        self.lazy(callback)
+        self.resolver(callback)
+    }
+
+    /// Registers a closure that will be call each time
+    /// an instance of the specified type is requested
+    /// If a closure already registered for this type, this one will be ignore
+    ///
+    /// The returned instance will be store in the global service container
+    /// and subsequent request for this type will resolve to that copy.
+    ///
+    /// Note: The service container passed to your callback is the instance
+    ///       of the global service container
+    pub fn soft_resolve_once<T: Clone + Send + Sync + 'static>(
+        self,
+        callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    ) -> Self {
+        if let Some(_) = self.resolvers.get(&TypeId::of::<T>()) {
+            return self;
+        }
+
+        self.resolve_once(callback)
     }
 
     /// T is wrapped in a `Service`
@@ -316,8 +414,8 @@ impl ServiceContainerBuilder {
                 services.insert(k, v);
             }
         }
-        if let Ok(mut lazies) = container.lazy.write() {
-            for (k, v) in self.lazy {
+        if let Ok(mut lazies) = container.resolvers.write() {
+            for (k, v) in self.resolvers {
                 lazies.insert(k, v);
             }
         }
@@ -338,10 +436,12 @@ mod test {
 
     #[async_trait]
     impl Injectable for Counter {
-        async fn inject(container: &ServiceContainer) -> Self {
-            container
-                .get_type()
-                .unwrap_or_else(|| Counter { start_point: 44 })
+        async fn inject(container: &ServiceContainer) -> Option<Self> {
+            let mut result = container.get_type();
+            if result.is_none() {
+                result = Some(Counter { start_point: 44 });
+            }
+            result
         }
     }
 

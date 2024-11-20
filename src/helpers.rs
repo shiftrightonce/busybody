@@ -175,27 +175,64 @@ pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
 }
 
 /// Registers a closure that will be call each time
-/// an instance of the spcified type is requested
+/// an instance of the specified type is requested
 /// This closure will override existing closure for this type
-pub fn lazy<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+///
+/// Note: The service container passed to your callback is the instance
+///       of the global service container
+pub fn resolver<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    let conatiner = service_container();
-    conatiner.lazy(callback);
-
-    conatiner
+    ServiceContainerBuilder::new().resolver(callback).build()
 }
 
 /// Registers a closure that will be call each time
-/// an instance of the spcified type is requested
-/// If a closure alreay registered for this type, this one will be ignore
-pub fn soft_lazy<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(&ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+/// an instance of the specified type is requested
+/// This closure will override existing closure for this type
+///
+/// The returned instance will be store in the global service container
+/// and subsequent request for this type will resolve to that copy.
+///
+/// Note: The service container passed to your callback is the instance
+///       of the global service container
+pub fn resolve_once<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    let conatiner = service_container();
-    conatiner.soft_lazy(callback);
+    ServiceContainerBuilder::new()
+        .resolve_once(callback)
+        .build()
+}
 
-    conatiner
+/// Registers a closure that will be call each time
+/// an instance of the specified type is requested
+/// If a closure already registered for this type, this one will be ignore
+///
+///
+/// Note: The service container passed to your callback is the instance
+///       of the global service container
+pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+) -> Arc<ServiceContainer> {
+    ServiceContainerBuilder::new()
+        .soft_resolver(callback)
+        .build()
+}
+
+/// Registers a closure that will be call each time
+/// an instance of the specified type is requested
+/// If a closure already registered for this type, this one will be ignore
+///
+/// The returned instance will be store in the global service container
+/// and subsequent request for this type will resolve to that copy.
+///
+/// Note: The service container passed to your callback is the instance
+///       of the global service container
+pub fn soft_resolve_once<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+) -> Arc<ServiceContainer> {
+    ServiceContainerBuilder::new()
+        .soft_resolve_once(callback)
+        .build()
 }
 
 /// Returns a new proxy service container
