@@ -35,9 +35,12 @@ impl Injectable for () {
 
 // 1 arguments
 #[async_trait]
-impl<A: Injectable> Injectable for (A,) {
+impl<A: Clone + 'static> Injectable for (A,) {
     async fn inject(c: &ServiceContainer) -> Self {
-        (A::inject(c).await,)
+        (c.get_type().expect(&format!(
+            "could not inject type: {}",
+            std::any::type_name::<A>()
+        )),)
     }
 }
 
@@ -46,9 +49,9 @@ impl<A: Injectable> Injectable for (A,) {
 macro_rules! tuple_from_injectable {
     ($($T: ident),*) => {
         #[async_trait]
-        impl<$($T: Injectable + Sync + Send + 'static),+> Injectable for ($($T,)+) {
+        impl<$($T: Clone + 'static),+> Injectable for ($($T,)+) {
             async fn inject(c: &ServiceContainer) -> Self {
-             join!($($T::inject(c)),+)
+            ($(c.get_type::<$T>().unwrap()), +)
             }
         }
     };
