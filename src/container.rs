@@ -1,8 +1,13 @@
 #![allow(dead_code)]
 
-use futures::{executor::block_on, future::BoxFuture};
+use futures::future::BoxFuture;
+use tokio::{runtime::Handle, task::block_in_place};
 
-use crate::{helpers::service_container, service::Service, Handler, Injectable, Singleton};
+use crate::{
+    helpers::{self, service_container},
+    service::Service,
+    Handler, Injectable, Singleton,
+};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -259,24 +264,21 @@ impl ServiceContainer {
     where
         Args: Injectable + 'static,
     {
-        Args::inject(self).await.unwrap()
+        Args::inject(self).await
     }
 
     /// Given a type, this method will try to call the `inject` method
     /// implemented on the type. It does not check the container for existing
     /// instance.
     pub async fn provide<T: Injectable + 'static>(&self) -> T {
-        T::inject(self).await.expect(&format!(
-            "could not 'provide' type : {}",
-            std::any::type_name::<T>()
-        ))
+        T::inject(self).await
     }
 
     /// Given a type, this method will try to find an instance of the type
     /// wrapped in a `Service<T>` that is currently registered in the service
     /// container.
     pub async fn service<T: 'static>(&self) -> Service<T> {
-        Service::inject(self).await.unwrap()
+        Service::inject(self).await
     }
 
     /// Given a type, this method will try to find an existing instance of the
@@ -436,12 +438,12 @@ mod test {
 
     #[async_trait]
     impl Injectable for Counter {
-        async fn inject(container: &ServiceContainer) -> Option<Self> {
+        async fn inject(container: &ServiceContainer) -> Self {
             let mut result = container.get_type();
             if result.is_none() {
-                result = Some(Counter { start_point: 44 });
+                result = container.set_type(Counter { start_point: 44 }).get_type();
             }
-            result
+            result.unwrap()
         }
     }
 
@@ -634,7 +636,7 @@ mod test {
     async fn test_lazy() {
         let container = ServiceContainer::proxy();
 
-        container.lazy::<String>(|_| Box::pin(async { "foo".to_string() }));
+        container.resolver::<String>(|_| Box::pin(async { "foo".to_string() }));
 
         assert_eq!(container.get_type::<String>(), Some("foo".to_string()));
     }
@@ -646,7 +648,7 @@ mod test {
         #[derive(Debug, Clone, PartialEq)]
         struct Special(String);
 
-        container.lazy::<Special>(|c| {
+        container.resolver::<Special>(|c| {
             let cc = Box::pin(c);
             Box::pin(async move {
                 if let Some(e) = cc.get_type::<Special>() {
