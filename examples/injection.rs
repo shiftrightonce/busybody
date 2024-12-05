@@ -29,7 +29,7 @@ async fn main() {
     );
 
     // Point 5. Another way to get an instance of the type.
-    //          We can call the static method "instnace" on the type/struct
+    //          We can call the static method "instance" on the type/struct
     let invoice_fetcher2 = DailyInvoicesFetcher::instance().await;
     println!(
         "client id: {}. invoices fetched: {:#?}",
