@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.13] - 2024-12-05
+
+### Bug Fixes
+
+- Remove unneeded `unwrap`
+
+### Features
+
+- Add the ability to register a resolver
+- Automatically implement `injectable` for types
+- Add the ability to register resolvers
+
+### Example
+
+- Add resolver examples
+
 ## [0.3.12] - 2024-10-31
 
 ### Features
