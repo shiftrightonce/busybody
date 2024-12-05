@@ -6,7 +6,7 @@ use futures::future::BoxFuture;
 
 use crate::{
     container::SERVICE_CONTAINER, handlers::Handler, injectable::Injectable, service::Service,
-    ServiceContainer, ServiceContainerBuilder, Singleton,
+    Resolver, ServiceContainer, ServiceContainerBuilder, Singleton,
 };
 
 /// Takes an async function or closure and executes it
@@ -53,6 +53,53 @@ where
     Args::inject(container).await
 }
 
+/// Takes an async function or closure and execute it
+/// Require arguments are resolve either by a resolver or sourced from the service container
+///
+/// This function will use an existing if one exist.
+/// The service container to used is provided by the caller.
+pub async fn resolve_and_call<F, Args>(handler: F) -> F::Output
+where
+    F: Handler<Args>,
+    Args: Resolver,
+{
+    service_container().resolve_and_call(handler).await
+}
+
+/// Given a tuple of types, this function will try to resolve them
+/// by using a resolver or cloning an existing instance in the container
+///
+/// The global service container is used.
+pub fn resolve_all<Args>() -> Args
+where
+    Args: Resolver,
+{
+    Args::resolve(&service_container())
+}
+
+/// Given a tuple of types, this function will try to resolve them
+/// by using a resolver or cloning an existing instance in the container
+///
+pub fn resolve_all_with<Args>(ci: &ServiceContainer) -> Args
+where
+    Args: Resolver,
+{
+    Args::resolve(ci)
+}
+
+/// Takes an async function or closure, a reference to the service container and execute it
+/// Require arguments are resolve either by a resolver or sourced from the service container
+///
+/// This function will use an existing if one exist.
+/// This  function will use the provided service container before fallback back to the global one
+pub async fn resolve_and_call_with<F, Args>(ci: &ServiceContainer, handler: F) -> F::Output
+where
+    F: Handler<Args>,
+    Args: Resolver,
+{
+    ci.resolve_and_call(handler).await
+}
+
 /// Given a type, this function will try to call the `inject` method
 /// implemented by the type.
 /// This function uses the global container
@@ -80,11 +127,16 @@ pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>() -> Singl
 
 /// Returns the global service container instance
 pub fn service_container() -> Arc<ServiceContainer> {
+    dbg!("getting service container");
     if let Some(container) = SERVICE_CONTAINER.get() {
-        container.clone()
-    } else {
-        ServiceContainerBuilder::new().build()
+        return container.clone();
     }
+    ServiceContainerBuilder::new().build()
+}
+
+/// Returns an instance of the service builder
+pub fn make_builder() -> ServiceContainerBuilder {
+    ServiceContainerBuilder::new()
 }
 
 /// Tries to get an instance of the type if one exist in the container.
@@ -178,10 +230,8 @@ pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
 /// an instance of the specified type is requested
 /// This closure will override existing closure for this type
 ///
-/// Note: The service container passed to your callback is the instance
-///       of the global service container
 pub fn resolver<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new().resolver(callback).build()
 }
@@ -195,11 +245,11 @@ pub fn resolver<T: Clone + Send + Sync + 'static>(
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub fn resolve_once<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+pub fn resolver_once<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
-        .resolve_once(callback)
+        .resolver_once(callback)
         .build()
 }
 
@@ -211,7 +261,7 @@ pub fn resolve_once<T: Clone + Send + Sync + 'static>(
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
 pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+    callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
         .soft_resolver(callback)
@@ -227,11 +277,11 @@ pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub fn soft_resolve_once<T: Clone + Send + Sync + 'static>(
-    callback: impl Fn(Arc<ServiceContainer>) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+pub fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
+    callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
-        .soft_resolve_once(callback)
+        .soft_resolver_once(callback)
         .build()
 }
 

@@ -125,6 +125,7 @@
 mod container;
 mod handlers;
 mod injectable;
+mod resolver;
 mod service;
 mod singleton;
 
@@ -134,6 +135,7 @@ pub use container::ServiceContainer;
 pub use container::ServiceContainerBuilder;
 pub use handlers::*;
 pub use injectable::Injectable;
+pub use resolver::Resolver;
 pub use service::RawType;
 pub use service::Service;
 pub use singleton::Singleton;

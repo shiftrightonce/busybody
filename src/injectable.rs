@@ -7,7 +7,7 @@ pub trait Injectable {
     /// The required method that makes a type injectable
     async fn inject(container: &ServiceContainer) -> Self;
 
-    /// Injects and return a concret instance of the injectable type
+    /// Injects and return a concrete instance of the injectable type
     /// The global service container is used
     async fn instance() -> Self
     where
@@ -35,12 +35,12 @@ impl Injectable for () {
 
 // 1 arguments
 #[async_trait]
-impl<A: Clone + 'static> Injectable for (A,) {
+impl<A> Injectable for (A,)
+where
+    A: Injectable + 'static,
+{
     async fn inject(c: &ServiceContainer) -> Self {
-        (c.get_type().expect(&format!(
-            "could not inject type: {}",
-            std::any::type_name::<A>()
-        )),)
+        (A::inject(c).await,)
     }
 }
 
@@ -49,9 +49,9 @@ impl<A: Clone + 'static> Injectable for (A,) {
 macro_rules! tuple_from_injectable {
     ($($T: ident),*) => {
         #[async_trait]
-        impl<$($T: Clone + 'static),+> Injectable for ($($T,)+) {
+        impl<$($T: Injectable + Send + Sync + 'static),+> Injectable for ($($T,)+) {
             async fn inject(c: &ServiceContainer) -> Self {
-            ($(c.get_type::<$T>().unwrap()), +)
+                join!($($T::inject(c)),+)
             }
         }
     };
@@ -233,7 +233,7 @@ mod test {
 
     #[tokio::test]
     async fn test_getting_option() {
-        let container = ServiceContainer::new();
+        let container = ServiceContainer::proxy();
 
         container.set_type(Some(container.provide::<Foo>().await));
 
@@ -253,7 +253,7 @@ mod test {
 
     #[tokio::test]
     async fn test_getting_result() {
-        let container = ServiceContainer::new();
+        let container = ServiceContainer::proxy();
 
         container.set_type(Ok::<Foo, ()>(container.provide::<Foo>().await));
 

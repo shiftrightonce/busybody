@@ -65,15 +65,15 @@ impl<T: 'static> Injectable for Service<T> {
 }
 
 #[derive(Debug)]
-pub struct RawType<T: Sized>(T);
+pub struct RawType<T: Clone>(T);
 
-impl<T> RawType<T> {
+impl<T: Clone> RawType<T> {
     pub fn new(the_type: T) -> Self {
         RawType(the_type)
     }
 }
 
-impl<T: Sized> RawType<T> {
+impl<T: Clone> RawType<T> {
     pub fn get_ref(&self) -> &T {
         &self.0
     }
@@ -83,7 +83,7 @@ impl<T: Sized> RawType<T> {
     }
 }
 
-impl<T: Sized> Deref for RawType<T> {
+impl<T: Clone> Deref for RawType<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -91,13 +91,13 @@ impl<T: Sized> Deref for RawType<T> {
     }
 }
 
-impl<T: Sized> DerefMut for RawType<T> {
+impl<T: Clone> DerefMut for RawType<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<T: Sized> From<T> for RawType<T> {
+impl<T: Clone> From<T> for RawType<T> {
     fn from(the_type: T) -> Self {
         Self(the_type)
     }
