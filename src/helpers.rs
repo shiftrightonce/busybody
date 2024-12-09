@@ -127,7 +127,6 @@ pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>() -> Singl
 
 /// Returns the global service container instance
 pub fn service_container() -> Arc<ServiceContainer> {
-    dbg!("getting service container");
     if let Some(container) = SERVICE_CONTAINER.get() {
         return container.clone();
     }
