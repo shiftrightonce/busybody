@@ -38,6 +38,42 @@ fn main() {
 ## Busybody as a dependency injector
 <details>
   <summary>
+     Service Resolver
+  </summary>
+
+  ```rust
+  use busybody::*;
+
+  #[derive(Debug, Clone)]
+  struct Config {
+    hostname: String
+  }
+
+#[tokio::main]
+async fn main() {
+  // Whenever an instance of Config is needed
+  // this closure will be called
+  helpers::resolver(|_container| {
+    Box::pin(async {
+      Config {
+         hostname: "127.0.0.1".to_string(),
+      }
+    })
+  });
+
+  let _config: Config = helpers::get_type().unwrap(); // Resolve an instance of Config
+
+  helpers::resolve_and_call(send_invoices).await; // Resolve all the parameters of "send_invoices" and call it.
+}
+
+async fn send_invoices(config: Config) {
+  println!("sending invoices to: {}", &config.hostname);
+}
+```
+
+</details>
+<details>
+  <summary>
     Dependency injection example
   </summary>
 
