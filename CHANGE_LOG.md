@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.14] - 2024-12-09
+
+### Bug Fixes
+
+- Remove `dbg!` call
+
+### Example
+
+- Add `resolver` example
+
 ## [0.3.13] - 2024-12-05
 
 ### Bug Fixes
