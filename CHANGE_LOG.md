@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.15] - 2025-02-04
+
+### Bug Fixes
+
+- Update dependencies
+
+### Example
+
+- Fix deprecation
+
 ## [0.3.14] - 2024-12-09
 
 ### Bug Fixes
