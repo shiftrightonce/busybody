@@ -7,7 +7,7 @@ edition = "2021"
 
 
 [dependencies]
-actix-web = "4.3.1"
+actix-web = "4.9"
 busybody = { path = "../../" }
-chrono = "0.4.26"
-rand = "0.8.5"
+chrono = "0.4"
+rand = "0.9"

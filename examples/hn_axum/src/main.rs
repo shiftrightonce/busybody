@@ -1,7 +1,6 @@
 use axum::{extract::Path, routing::get, Json, Router};
 use busybody::helpers::service_container;
 use hn_api::{hacker_news_client::HackerNewsClientTrait, HackerNewsClientProvider};
-use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
@@ -20,13 +19,12 @@ async fn main() {
     // 2. build our application with a route
     let app = Router::new()
         .route("/", get(top_stories))
-        .route("/item/:id", get(get_story));
+        .route("/item/{id}", get(get_story));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
         .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
 
 async fn top_stories() -> Json<Vec<u32>> {
