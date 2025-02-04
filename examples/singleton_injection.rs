@@ -67,14 +67,14 @@ struct DailyInvoicesFetcher {
 
 impl DailyInvoicesFetcher {
     pub async fn fetch(&self) -> Vec<String> {
-        let mut rng = rand::thread_rng(); // for random numbers generation
+        let mut rng = rand::rng(); // for random numbers generation
 
         println!("fetching invoices using token: {:#?}", self.api_token);
-        let total = rng.gen_range(0..15);
+        let total = rng.random_range(0..15);
         let mut invoices = Vec::with_capacity(total);
 
         for _ in 0..total {
-            invoices.push(format!("Invoice: {}", rng.gen::<u32>()));
+            invoices.push(format!("Invoice: {}", rng.random::<u32>()));
         }
 
         invoices
@@ -84,11 +84,11 @@ impl DailyInvoicesFetcher {
 #[busybody::async_trait]
 impl Injectable for DailyInvoicesFetcher {
     async fn inject(container: &ServiceContainer) -> Self {
-        let mut rng = rand::thread_rng(); // for random numbers generation
+        let mut rng = rand::rng(); // for random numbers generation
         let api_token = container.get::<AppConfig>().unwrap().api_token.clone(); // Using the container, we are plucking the registered AppConfig's instance
         Self {
             api_token,
-            id: rng.gen(),
+            id: rng.random(),
         } // Create a new instance for each call
     }
 }
