@@ -759,7 +759,7 @@ mod test {
         let result: Option<Service<_>> = container.get::<UserName>();
 
         assert_eq!(true, result.is_some());
-        assert_eq!("foobar", result.unwrap().get_ref().0);
+        assert_eq!("foobar", result.unwrap().as_ref().0);
     }
 
     #[tokio::test]
