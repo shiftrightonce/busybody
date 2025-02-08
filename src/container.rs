@@ -137,7 +137,7 @@ impl ServiceContainer {
     }
 
     pub(crate) fn init(id: &str) {
-        if let Ok(mut lock) = COLLECTION.get_or_init(|| RwLock::default()).write() {
+        if let Ok(mut lock) = COLLECTION.get_or_init(RwLock::default).write() {
             if !lock.contains_key(id) {
                 lock.insert(id.to_string(), Container::default());
             }
@@ -542,16 +542,13 @@ impl ServiceContainerBuilder {
 
     /// Instantiate and returns the service container
     pub fn build(self) -> Arc<ServiceContainer> {
-        let container;
         if self.service_container.id == GLOBAL_INSTANCE_ID {
-            container = SERVICE_CONTAINER
+            SERVICE_CONTAINER
                 .get_or_init(|| Arc::new(self.service_container))
-                .clone();
+                .clone()
         } else {
-            container = Arc::new(self.service_container);
+            Arc::new(self.service_container)
         }
-
-        container
     }
 }
 
