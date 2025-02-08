@@ -12,7 +12,7 @@ async fn main() {
 }
 
 // 3. make_sales_order expect an instance of SalesOrder and the IdGenerator as a service
-//   Note that the SalesOrder instance is not wrapped in RawType<T>, Singleton<T> or Service<T>.
+//   Note that the SalesOrder instance is not wrapped in Singleton<T> or Service<T>.
 //   It is a plan old instance of the type
 async fn make_sales_order(mut so: SalesOrder, id_generator: Service<IdGenerator>) -> SalesOrder {
     so.id = id_generator.make();
