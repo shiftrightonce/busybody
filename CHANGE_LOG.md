@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-02-08
+
+### Bug Fixes
+
+- `Service<T>` and `RawType<T>` have been removed
+
+### Example
+
+- Remove RawType<T> from example
+
 ## [0.3.15] - 2025-02-04
 
 ### Bug Fixes
