@@ -76,7 +76,7 @@ impl Container {
 
     pub(crate) fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         if let Ok(mut lock) = self.resolvers.write() {
             lock.insert(
@@ -94,7 +94,7 @@ impl Container {
 
     pub(crate) fn soft_resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         if self.has_resolver::<T>() {
             return self;
@@ -282,7 +282,7 @@ impl ServiceContainer {
     ///       
     pub fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         if let Some(rw) = COLLECTION.get() {
             if let Ok(lock) = rw.read() {
@@ -301,7 +301,7 @@ impl ServiceContainer {
     ///
     pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         if let Some(rw) = COLLECTION.get() {
             if let Ok(lock) = rw.read() {
@@ -509,7 +509,7 @@ impl ServiceContainerBuilder {
     ///
     pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
         self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> Self {
         self.service_container.soft_resolver(callback);
         self
