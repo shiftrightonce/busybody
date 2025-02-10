@@ -2,11 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-02-10
+
+### Bug Fixes
+
+- Change `copy` to `clone`
+
 ## [0.4.0] - 2025-02-08
 
 ### Bug Fixes
 
-- `Service<T>` and `RawType<T>` have been removed
+- Both struct has been removed
 
 ### Example
 
