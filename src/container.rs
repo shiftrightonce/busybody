@@ -19,7 +19,7 @@ pub(crate) const GLOBAL_INSTANCE_ID: &str = "_global_ci";
 type ResolverCollection = HashMap<
     TypeId,
     Box<
-        dyn Fn(ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
+        dyn FnMut(ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
             + Sync
             + Send
             + 'static,
@@ -40,8 +40,8 @@ impl Container {
             }
         }
 
-        if let Ok(lock) = self.resolvers.read() {
-            if let Some(callback) = lock.get(&TypeId::of::<T>()) {
+        if let Ok(mut lock) = self.resolvers.write() {
+            if let Some(callback) = lock.get_mut(&TypeId::of::<T>()) {
                 let fut = callback(ci);
                 drop(lock);
 
@@ -76,7 +76,11 @@ impl Container {
 
     pub(crate) fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
+        mut callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T>
+            + Send
+            + Sync
+            + Clone
+            + 'static,
     ) -> &Self {
         if let Ok(mut lock) = self.resolvers.write() {
             lock.insert(
@@ -282,7 +286,7 @@ impl ServiceContainer {
     ///       
     pub fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
+        callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         if let Some(rw) = COLLECTION.get() {
             if let Ok(lock) = rw.read() {
@@ -481,7 +485,7 @@ impl ServiceContainerBuilder {
     ///
     pub fn resolver<T: Clone + Send + Sync + 'static>(
         self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
+        callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
         self.service_container.resolver(callback);
         self
