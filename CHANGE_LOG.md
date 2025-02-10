@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-02-10
+
+### Bug Fixes
+
+- Change resolver closure to `FnMut`
+
 ## [0.4.1] - 2025-02-10
 
 ### Bug Fixes
