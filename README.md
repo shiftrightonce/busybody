@@ -17,14 +17,17 @@ struct Config {
   hostname: String
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
   let container = ServiceContainerBuilder::new()
   .service(Config{ hostname: "http://localhost".into() }) // Will be wrapped in Service<T> ie: Arc<T>
+  .await
   .register(600i32) // left as it is, i32
+  .await
   .build();
 
-  let config = container.get::<Config>().unwrap(); // When "some", will return Service<Config>
-  let max_connection = container.get_type::<i32>().unwrap(); // When "some", will return i32
+  let config = container.get::<Config>().await.unwrap(); // When "some", will return Service<Config>
+  let max_connection = container.get_type::<i32>().await.unwrap(); // When "some", will return i32
 
   println!("config: {:#?}", &config);
   println!("hostname: {:#?}", &config.hostname);
@@ -59,9 +62,9 @@ async fn main() {
          hostname: "127.0.0.1".to_string(),
       }
     })
-  });
+  }).await;
 
-  let _config: Config = helpers::get_type().unwrap(); // Resolve an instance of Config
+  let _config: Config = helpers::get_type().await.unwrap(); // Resolve an instance of Config
 
   helpers::resolve_and_call(send_invoices).await; // Resolve all the parameters of "send_invoices" and call it.
 }
@@ -149,14 +152,16 @@ async fn main() {
   </summary>
 
 ```rust
-use busybody::{helpers, RawType, Service, ServiceContainerBuilder};
+use busybody::{helpers, Service, ServiceContainerBuilder};
 
 #[tokio::main]
 async fn main() {
     // 1. Setup the container
     _ = ServiceContainerBuilder::new()
         .register(200) // Register an i32 value that is not wrapped in Service<T>
+        .await
         .service(400) // Register an i32 value that is wrapped in Service<T>
+        .await
         .build();
 
     // 2. `inject_and_call` calls the provided function/closure, injecting all of it's required parameters
@@ -165,15 +170,13 @@ async fn main() {
     let double_result = helpers::inject_and_call(double).await;
     println!("200 double is: {}", double_result);
 
-    // 3. Same as above but we are making use of "RawType<T>"
-    //    RawType<T> tries to find an instance of the specified type. If none exist,
+    // 3. Same as above but we are making use of a Service<T> ie Arc<T>
     //    it uses the `default` associate method to create a default instance of the Type.
-    //    This means, the "T" in RawType must implement the `Default` trait.
-    let sum = helpers::inject_and_call(|raw_i32: RawType<i32>, service_i32: Service<i32>| async {
-        raw_i32.into_inner() + *service_i32.into_inner()
+    let sum = helpers::inject_and_call(|raw_i32: i32, service_i32: Service<i32>| async move {
+        raw_i32 + *service_i32
     })
     .await;
-    println!("Service<200> + RawType<400> = {}", sum);
+    println!("Service<200> + 400 = {}", sum);
 }
 
 // 4. Function is taken an I32.
