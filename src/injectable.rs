@@ -93,126 +93,126 @@ tuple_from_injectable! { A, B, C, D, E, F, G, H, I, J, K, L,M, N, O, P, Q }
 #[async_trait]
 impl Injectable for u8 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for i8 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for u16 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for i16 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for i32 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for u32 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for i64 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for u64 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for f32 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for f64 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for usize {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for isize {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for i128 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for u128 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl Injectable for String {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap_or_default()
+        c.get_type().await.unwrap_or_default()
     }
 }
 
 #[async_trait]
 impl<T> Injectable for Option<T>
 where
-    T: Injectable + Clone + 'static,
+    T: Injectable + Clone + Send + Sync + 'static,
 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().unwrap()
+        c.get_type().await.unwrap()
     }
 }
 
 #[async_trait]
 impl<T, E> Injectable for Result<T, E>
 where
-    T: Injectable + Clone + 'static,
-    E: Injectable + Clone + 'static,
+    T: Injectable + Clone + Send + Sync + 'static,
+    E: Injectable + Clone + Send + Sync + 'static,
 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.proxy_value().unwrap()
+        c.proxy_value().await.unwrap()
     }
 }
 
@@ -235,9 +235,11 @@ mod test {
     async fn test_getting_option() {
         let container = ServiceContainer::proxy();
 
-        container.set_type(Some(container.provide::<Foo>().await));
+        container
+            .set_type(Some(container.provide::<Foo>().await))
+            .await;
 
-        let foo: Option<Option<Foo>> = container.get_type();
+        let foo: Option<Option<Foo>> = container.get_type().await;
 
         assert_eq!(
             foo.is_some(),
@@ -255,9 +257,11 @@ mod test {
     async fn test_getting_result() {
         let container = ServiceContainer::proxy();
 
-        container.set_type(Ok::<Foo, ()>(container.provide::<Foo>().await));
+        container
+            .set_type(Ok::<Foo, ()>(container.provide::<Foo>().await))
+            .await;
 
-        let foo: Option<Result<Foo, ()>> = container.get_type();
+        let foo: Option<Result<Foo, ()>> = container.get_type().await;
 
         assert_eq!(
             foo.is_some(),
@@ -271,7 +275,7 @@ mod test {
             "foo should have been wrapped in a Result<Foo, ()>"
         );
 
-        let an_int: Option<Result<i32, ()>> = container.get_type();
+        let an_int: Option<Result<i32, ()>> = container.get_type().await;
         assert_eq!(
             an_int.is_some(),
             false,

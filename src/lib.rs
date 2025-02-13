@@ -11,14 +11,17 @@
 //!  hostname: String
 //!}
 //!
-//! fn main() {
+//! #[tokio::main]
+//! async fn main() {
 //!  let container = ServiceContainerBuilder::new()
 //!  .service(Config{ hostname: "http://localhost".into() }) // Will be wrapped in Service<T> ie: Arc<T>
+//!  .await
 //!  .register(600i32) // left as it is, i32
+//!  .await
 //!  .build();
 //!
-//!  let config = container.get::<Config>().unwrap(); // When "some" will return Service<Config>
-//!  let max_connection = container.get_type::<i32>().unwrap(); // When "some" will return i32
+//!  let config = container.get::<Config>().await.unwrap(); // When "some" will return Service<Config>
+//!  let max_connection = container.get_type::<i32>().await.unwrap(); // When "some" will return i32
 //!
 //!  println!("config: {:#?}", &config);
 //!  println!("hostname: {:#?}", &config.hostname);
@@ -65,7 +68,9 @@
 //!    // 1. Setup the container
 //!    _ = ServiceContainerBuilder::new()
 //!        .register(200) // Register an i32 value that is not wrapped in Service<T>
+//!        .await
 //!        .service(400) // Register an i32 value that is wrapped in Service<T>
+//!        .await
 //!        .build();
 //!
 //!    // 2. `inject_and_call` calls the provided function/closure, injecting all of it's required parameters
@@ -79,7 +84,7 @@
 //!        raw_i32 + *service_i32
 //!     })
 //!     .await;
-//!     println!("Service<200> + RawType<400> = {}", sum);
+//!     println!("Service<200> + 400 = {}", sum);
 //! }
 //!
 //! // 4. Function is taken an I32.

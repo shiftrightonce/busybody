@@ -12,11 +12,11 @@ pub struct Singleton<T: Injectable>(Service<T>);
 #[async_trait]
 impl<T: Injectable + Send + Sync + 'static> Injectable for Singleton<T> {
     async fn inject(container: &ServiceContainer) -> Self {
-        let content = match container.get::<T>() {
+        let content = match container.get::<T>().await {
             Some(instance) => instance,
             None => {
                 let content_service = Service::new(T::inject(container).await);
-                container.set_type(content_service.clone());
+                container.set_type(content_service.clone()).await;
                 content_service
             }
         };

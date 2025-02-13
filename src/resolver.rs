@@ -1,22 +1,25 @@
 use crate::ServiceContainer;
 
+#[async_trait::async_trait]
 pub trait Resolver {
-    fn resolve(container: &ServiceContainer) -> Self;
+    async fn resolve(container: &ServiceContainer) -> Self;
 }
 
 // Zero argument
+#[async_trait::async_trait]
 impl Resolver for () {
-    fn resolve(_: &ServiceContainer) -> Self {}
+    async fn resolve(_: &ServiceContainer) -> Self {}
 }
 
 // 1 argument
 
+#[async_trait::async_trait]
 impl<A> Resolver for (A,)
 where
-    A: Clone + 'static,
+    A: Clone + Send + Sync + 'static,
 {
-    fn resolve(c: &ServiceContainer) -> Self {
-        (c.get_type::<A>().unwrap(),)
+    async fn resolve(c: &ServiceContainer) -> Self {
+        (c.get_type::<A>().await.unwrap(),)
     }
 }
 
@@ -24,9 +27,10 @@ where
 /// for a tuple with one element but for tuples with two or more elements
 macro_rules! tuple_from_resolvable {
     ($($T: ident),*) => {
-        impl<$($T: Clone  + 'static),+> Resolver for ($($T,)+) {
-            fn resolve(c: &ServiceContainer) -> Self {
-                ($(c.get_type::<$T>().unwrap()),+)
+        #[async_trait::async_trait]
+        impl<$($T: Clone + Send + Sync  + 'static),+> Resolver for ($($T,)+) {
+            async fn resolve(c: &ServiceContainer) -> Self {
+                ($(c.get_type::<$T>().await.unwrap()),+)
             }
         }
     };

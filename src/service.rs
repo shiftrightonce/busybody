@@ -7,9 +7,9 @@ use std::sync::Arc;
 pub type Service<T> = Arc<T>;
 
 #[async_trait]
-impl<T: 'static> Injectable for Service<T> {
+impl<T: Send + Sync + 'static> Injectable for Service<T> {
     async fn inject(container: &ServiceContainer) -> Self {
-        match container.get::<T>() {
+        match container.get::<T>().await {
             Some(service) => service,
             None => {
                 panic!("Could not find service: {:?}", std::any::type_name::<T>())

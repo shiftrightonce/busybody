@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use futures::future::BoxFuture;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::{
     helpers::service_container, service::Service, Handler, Injectable, Resolver, Singleton,
@@ -8,73 +9,74 @@ use crate::{
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, OnceLock},
 };
 
 pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
-pub(crate) static COLLECTION: std::sync::OnceLock<RwLock<HashMap<String, Container>>> =
-    std::sync::OnceLock::new();
 pub(crate) const GLOBAL_INSTANCE_ID: &str = "_global_ci";
 
 type ResolverCollection = HashMap<
     TypeId,
-    Box<
-        dyn FnMut(ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
-            + Sync
-            + Send
-            + 'static,
+    Arc<
+        Mutex<
+            Box<
+                dyn FnMut(
+                        ServiceContainer,
+                    )
+                        -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
+                    + Sync
+                    + Send
+                    + 'static,
+            >,
+        >,
     >,
 >;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct Container {
-    services: RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>,
-    resolvers: RwLock<ResolverCollection>,
+    services: Arc<RwLock<HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>>>,
+    resolvers: Arc<RwLock<ResolverCollection>>,
 }
 
 impl Container {
-    pub(crate) fn get<T: Clone + 'static>(&self, ci: ServiceContainer) -> Option<T> {
-        if let Ok(lock) = self.services.read() {
-            if let Some(raw) = lock.get(&TypeId::of::<T>()) {
-                return raw.downcast_ref().cloned();
-            }
+    pub(crate) async fn get<T: Clone + 'static>(&self, ci: ServiceContainer) -> Option<T> {
+        let lock = self.services.read().await;
+        if let Some(raw) = lock.get(&TypeId::of::<T>()) {
+            return raw.downcast_ref().cloned();
         }
+        drop(lock);
 
-        if let Ok(mut lock) = self.resolvers.write() {
-            if let Some(callback) = lock.get_mut(&TypeId::of::<T>()) {
-                let fut = callback(ci);
-                drop(lock);
+        let lock = self.resolvers.read().await;
 
-                let mut pool = futures::executor::LocalPool::new();
-                return pool.run_until(fut).downcast_ref::<T>().cloned();
-            }
+        if let Some(mutex) = lock.get(&TypeId::of::<T>()).cloned() {
+            drop(lock);
+            let mut callback = mutex.lock().await;
+            return callback(ci).await.downcast_ref::<T>().cloned();
         }
 
         None
     }
 
-    pub(crate) fn set<T: Send + Sync + 'static>(&self, value: T) -> &Self {
-        if let Ok(mut lock) = self.services.write() {
-            lock.insert(
-                TypeId::of::<T>(),
-                Box::new(value) as Box<dyn Any + Send + Sync + 'static>,
-            );
-        }
+    pub(crate) async fn set<T: Send + Sync + 'static>(&self, value: T) -> &Self {
+        let mut lock = self.services.write().await;
+        lock.insert(
+            TypeId::of::<T>(),
+            Box::new(value) as Box<dyn Any + Send + Sync + 'static>,
+        );
+        drop(lock);
+
         self
     }
 
-    pub(crate) fn forget<T: 'static>(&self) -> Option<Box<T>> {
-        if let Ok(mut lock) = self.services.write() {
-            if let Some(raw) = lock.remove(&TypeId::of::<T>()) {
-                drop(lock);
-                return raw.downcast().ok();
-            }
+    pub(crate) async fn forget<T: 'static>(&self) -> Option<Box<T>> {
+        let mut lock = self.services.write().await;
+        if let Some(raw) = lock.remove(&TypeId::of::<T>()) {
+            return raw.downcast().ok();
         }
-
         None
     }
 
-    pub(crate) fn resolver<T: Clone + Send + Sync + 'static>(
+    pub(crate) async fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
         mut callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T>
             + Send
@@ -82,44 +84,40 @@ impl Container {
             + Clone
             + 'static,
     ) -> &Self {
-        if let Ok(mut lock) = self.resolvers.write() {
-            lock.insert(
-                TypeId::of::<T>(),
-                Box::new(move |c| {
-                    let f = (callback)(c);
-                    Box::pin(
-                        async move { Box::new(f.await) as Box<dyn Any + Send + Sync + 'static> },
-                    )
-                }),
-            );
-        }
+        let mut lock = self.resolvers.write().await;
+        lock.insert(
+            TypeId::of::<T>(),
+            Arc::new(Mutex::new(Box::new(move |c| {
+                let f = (callback)(c);
+                Box::pin(async move { Box::new(f.await) as Box<dyn Any + Send + Sync + 'static> })
+            }))),
+        );
         self
     }
 
-    pub(crate) fn soft_resolver<T: Clone + Send + Sync + 'static>(
+    pub(crate) async fn soft_resolver<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
-        if self.has_resolver::<T>() {
+        if self.has_resolver::<T>().await {
             return self;
         }
 
-        self.resolver(callback)
+        self.resolver(callback).await
     }
 
-    pub(crate) fn has_resolver<T: 'static>(&self) -> bool {
-        if let Ok(lock) = self.resolvers.read() {
-            return lock.get(&TypeId::of::<T>()).is_some();
-        }
-        false
+    pub(crate) async fn has_resolver<T: 'static>(&self) -> bool {
+        let lock = self.resolvers.read().await;
+        lock.get(&TypeId::of::<T>()).is_some()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServiceContainer {
     in_proxy_mode: bool,
     is_reference: bool,
-    id: String,
+    container: Container,
+    id: Arc<String>,
 }
 
 impl Default for ServiceContainer {
@@ -131,20 +129,11 @@ impl Default for ServiceContainer {
 impl ServiceContainer {
     pub(crate) fn new() -> Self {
         let id = GLOBAL_INSTANCE_ID.to_string();
-        Self::init(&id);
-
         Self {
-            id,
+            id: Arc::new(id),
             in_proxy_mode: false,
             is_reference: false,
-        }
-    }
-
-    pub(crate) fn init(id: &str) {
-        if let Ok(mut lock) = COLLECTION.get_or_init(RwLock::default).write() {
-            if !lock.contains_key(id) {
-                lock.insert(id.to_string(), Container::default());
-            }
+            container: Default::default(),
         }
     }
 
@@ -153,6 +142,7 @@ impl ServiceContainer {
             is_reference: true,
             id: self.id.clone(),
             in_proxy_mode: self.in_proxy_mode,
+            container: self.container.clone(),
         }
     }
 
@@ -165,10 +155,9 @@ impl ServiceContainer {
     /// a specific scope
     pub fn proxy() -> Self {
         let id = ulid::Ulid::new().to_string().to_lowercase();
-        Self::init(&id);
 
         let mut ci = Self::default();
-        ci.id = id;
+        ci.id = Arc::new(id);
         ci.in_proxy_mode = true;
         ci
     }
@@ -181,43 +170,35 @@ impl ServiceContainer {
     /// Checks if the current container is in proxy mode.
     /// If that is the case, it tries to find the instance of the
     /// type, falls back to the main service container
-    pub fn proxy_value<T: Clone + 'static>(&self) -> Option<T> {
+    pub async fn proxy_value<T: Clone + 'static>(&self) -> Option<T> {
         if self.is_proxy() {
-            self.get_type::<T>()
+            self.get_type::<T>().await
         } else {
             None
         }
     }
 
     /// Tries to find the instance of the type wrapped in `Service<T>`
-    pub fn get<T: 'static>(&self) -> Option<Service<T>> {
-        self.get_type::<Service<T>>()
+    pub async fn get<T: 'static>(&self) -> Option<Service<T>> {
+        self.get_type::<Service<T>>().await
     }
 
-    pub fn forget_type<T: 'static>(&self) -> Option<Box<T>> {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    return ci.forget::<T>();
-                }
-            }
-        }
-
-        None
+    pub async fn forget_type<T: 'static>(&self) -> Option<Box<T>> {
+        self.container.forget::<T>().await
     }
 
-    pub fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
-        self.forget_type()
+    pub async fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
+        self.forget_type().await
     }
 
     /// Tries to find the instance of the type wrapped in `Service<T>`
     /// if an instance does not exist, one will be injected
     pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
-        let result = self.get::<T>();
+        let result = self.get::<T>().await;
 
         if result.is_none() {
             let instance = T::inject(self).await;
-            return self.set(instance).get::<T>().unwrap();
+            return self.set(instance).await.get::<T>().await.unwrap();
         }
 
         result.unwrap()
@@ -226,10 +207,10 @@ impl ServiceContainer {
     /// Tries to find the instance of the type T
     /// if an instance does not exist, one will be injected
     pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>(&self) -> T {
-        let result = self.get_type::<T>();
+        let result = self.get_type::<T>().await;
         if result.is_none() {
             let instance = T::inject(self).await;
-            self.set_type(instance.clone());
+            self.set_type(instance.clone()).await;
             return instance;
         }
 
@@ -237,46 +218,29 @@ impl ServiceContainer {
     }
 
     /// Tries to find the "raw" instance of the type
-    pub fn get_type<T: Clone + 'static>(&self) -> Option<T> {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    let value = ci.get::<T>(self.make_reference());
-                    drop(lock);
-                    if value.is_some() {
-                        return value;
-                    }
-                }
-            }
+    pub async fn get_type<T: Clone + 'static>(&self) -> Option<T> {
+        let value = self.container.get::<T>(self.make_reference()).await;
+        if value.is_some() {
+            return value;
         }
 
         if self.is_proxy() {
-            let instance = service_container().get_type();
-            if instance.is_some() {
-                return instance;
-            }
+            return Box::pin(async { service_container().get_type().await }).await;
         }
 
         None
     }
 
     /// Stores the instance
-    pub fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    ci.set(value);
-                }
-            }
-        }
-
+    pub async fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
+        self.container.set(value).await;
         self
     }
 
     /// Stores the instance as `Service<T>`
     /// You need to use "get" in order to retrieve the instance
-    pub fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
-        self.set_type(Service::new(ext))
+    pub async fn set<T: Send + Sync + 'static>(&self, ext: T) -> &Self {
+        self.set_type(Service::new(ext)).await
     }
 
     /// Registers a closure that will be call each time
@@ -284,17 +248,11 @@ impl ServiceContainer {
     /// This closure will override existing closure for this type
     ///
     ///       
-    pub fn resolver<T: Clone + Send + Sync + 'static>(
+    pub async fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    ci.resolver(callback);
-                }
-            }
-        }
+        self.container.resolver(callback).await;
 
         self
     }
@@ -303,17 +261,11 @@ impl ServiceContainer {
     /// an instance of the specified type is requested
     /// This closure will be ignored if the type already has a registered resolver
     ///
-    pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    ci.soft_resolver(callback);
-                }
-            }
-        }
+        self.container.soft_resolver(callback).await;
         self
     }
 
@@ -321,24 +273,20 @@ impl ServiceContainer {
     /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
     ///
-    pub fn resolver_once<T: Clone + Send + Sync + 'static>(
+    pub async fn resolver_once<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> &Self {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    ci.resolver(move |container| {
-                        let f = (callback)(container.clone());
-                        Box::pin(async move {
-                            let value = f.await;
-                            container.set_type(value.clone());
-                            value
-                        })
-                    });
-                }
-            }
-        }
+        self.container
+            .resolver(move |container| {
+                let f = (callback)(container.clone());
+                Box::pin(async move {
+                    let value = f.await;
+                    container.set_type(value.clone()).await;
+                    value
+                })
+            })
+            .await;
 
         self
     }
@@ -350,18 +298,12 @@ impl ServiceContainer {
     /// The returned instance will be store in the service container
     /// and subsequent request for this type will resolve to that copy.
     ///
-    pub fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> &Self {
-        if let Some(rw) = COLLECTION.get() {
-            if let Ok(lock) = rw.read() {
-                if let Some(ci) = lock.get(&self.id) {
-                    if !ci.has_resolver::<T>() {
-                        self.resolver_once(callback);
-                    }
-                }
-            }
+        if !self.container.has_resolver::<T>().await {
+            self.resolver_once(callback).await;
         }
 
         self
@@ -390,18 +332,18 @@ impl ServiceContainer {
         F: Handler<Args>,
         Args: Resolver,
     {
-        let args = Args::resolve(self);
+        let args = Args::resolve(self).await;
         handler.call(args).await
     }
 
     /// Given a tuple of types, this method will try to resolve them
     /// by using a resolver or cloning an existing instance in the container
     ///
-    pub fn resolve_all<Args>(&self) -> Args
+    pub async fn resolve_all<Args>(&self) -> Args
     where
         Args: Resolver,
     {
-        Args::resolve(self)
+        Args::resolve(self).await
     }
 
     /// Given a tuple of types, this method will try to resolve them
@@ -426,7 +368,7 @@ impl ServiceContainer {
     /// Given a type, this method will try to find an instance of the type
     /// wrapped in a `Service<T>` that is currently registered in the service
     /// container.
-    pub async fn service<T: 'static>(&self) -> Service<T> {
+    pub async fn service<T: Send + Sync + 'static>(&self) -> Service<T> {
         Service::inject(self).await
     }
 
@@ -438,16 +380,6 @@ impl ServiceContainer {
     /// this container goes out of scope.
     pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>(&self) -> Singleton<T> {
         Singleton::inject(self).await
-    }
-}
-
-impl Drop for ServiceContainer {
-    fn drop(&mut self) {
-        if !self.is_reference && self.id != GLOBAL_INSTANCE_ID {
-            if let Ok(mut lock) = COLLECTION.get().unwrap().write() {
-                lock.remove(&self.id);
-            }
-        }
     }
 }
 
@@ -474,8 +406,8 @@ impl ServiceContainerBuilder {
         }
     }
 
-    pub fn register<T: Clone + Send + Sync + 'static>(self, ext: T) -> Self {
-        self.service_container.set_type(ext);
+    pub async fn register<T: Clone + Send + Sync + 'static>(self, ext: T) -> Self {
+        self.service_container.set_type(ext).await;
         self
     }
 
@@ -483,11 +415,11 @@ impl ServiceContainerBuilder {
     /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
     ///
-    pub fn resolver<T: Clone + Send + Sync + 'static>(
+    pub async fn resolver<T: Clone + Send + Sync + 'static>(
         self,
         callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
-        self.service_container.resolver(callback);
+        self.service_container.resolver(callback).await;
         self
     }
 
@@ -498,11 +430,11 @@ impl ServiceContainerBuilder {
     /// The returned instance will be store in the service container
     /// and subsequent request for this type will resolve to that copy.
     ///
-    pub fn resolver_once<T: Clone + Send + Sync + 'static>(
+    pub async fn resolver_once<T: Clone + Send + Sync + 'static>(
         self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
-        self.service_container.resolver_once(callback);
+        self.service_container.resolver_once(callback).await;
         self
     }
 
@@ -511,11 +443,11 @@ impl ServiceContainerBuilder {
     /// If a closure already registered for this type, this one will be ignore
     ///
     ///
-    pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
         self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> Self {
-        self.service_container.soft_resolver(callback);
+        self.service_container.soft_resolver(callback).await;
         self
     }
 
@@ -528,25 +460,25 @@ impl ServiceContainerBuilder {
     ///
     /// Note: The service container passed to your callback is the instance
     ///       of the global service container
-    pub fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
         self,
         callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
-        self.service_container.soft_resolver_once(callback);
+        self.service_container.soft_resolver_once(callback).await;
         self
     }
 
     /// T is wrapped in a `Service`
     /// This means to get T back you need to specify `Service<T>`
     ///  or use the "get" method on the container
-    pub fn service<T: Send + Sync + 'static>(self, ext: T) -> Self {
-        self.service_container.set(ext);
+    pub async fn service<T: Send + Sync + 'static>(self, ext: T) -> Self {
+        self.service_container.set(ext).await;
         self
     }
 
     /// Instantiate and returns the service container
     pub fn build(self) -> Arc<ServiceContainer> {
-        if self.service_container.id == GLOBAL_INSTANCE_ID {
+        if self.service_container.id.as_str() == GLOBAL_INSTANCE_ID {
             SERVICE_CONTAINER
                 .get_or_init(|| Arc::new(self.service_container))
                 .clone()
@@ -572,9 +504,13 @@ mod test {
     #[async_trait]
     impl Injectable for Counter {
         async fn inject(container: &ServiceContainer) -> Self {
-            let mut result = container.get_type();
+            let mut result = container.get_type().await;
             if result.is_none() {
-                result = container.set_type(Counter { start_point: 44 }).get_type();
+                result = container
+                    .set_type(Counter { start_point: 44 })
+                    .await
+                    .get_type()
+                    .await;
             }
             result.unwrap()
         }
@@ -596,59 +532,60 @@ mod test {
     async fn test_builder() {
         let container = ServiceContainerBuilder::new_proxy()
             .service(5usize)
+            .await
             .register(true)
+            .await
             .build();
 
-        assert_eq!(*container.get::<usize>().unwrap(), 5usize);
-        assert_eq!(container.get_type::<bool>(), Some(true));
+        assert_eq!(*container.get::<usize>().await.unwrap(), 5usize);
+        assert_eq!(container.get_type::<bool>().await, Some(true));
     }
 
     #[tokio::test]
     async fn test_empty_container() {
         let container = ServiceContainer::proxy();
 
-        assert_eq!(container.get::<i32>().is_none(), true);
-        assert_eq!(container.get_type::<i32>(), None);
+        assert_eq!(container.get::<i32>().await.is_none(), true);
+        assert_eq!(container.get_type::<i32>().await, None);
     }
 
     #[tokio::test]
     async fn test_getting_raw_type() {
         let container = ServiceContainer::proxy();
-        container.set_type(400);
-        container.set_type(300f32);
-        container.set_type(true);
+        container.set_type(400).await;
+        container.set_type(300f32).await;
+        container.set_type(true).await;
 
-        assert_eq!(container.get_type::<i32>(), Some(400));
-        assert_eq!(container.get_type::<f32>(), Some(300f32));
-        assert_eq!(container.get_type::<bool>(), Some(true));
+        assert_eq!(container.get_type::<i32>().await, Some(400));
+        assert_eq!(container.get_type::<f32>().await, Some(300f32));
+        assert_eq!(container.get_type::<bool>().await, Some(true));
     }
 
     #[tokio::test]
     async fn test_getting_service_type() {
         let container = ServiceContainer::proxy();
-        container.set(400);
-        container.set(300f32);
-        container.set(true);
+        container.set(400).await;
+        container.set(300f32).await;
+        container.set(true).await;
 
-        assert_eq!(*container.get::<i32>().unwrap(), 400);
-        assert_eq!(*container.get::<f32>().unwrap(), 300f32);
-        assert_eq!(*container.get::<bool>().unwrap(), true);
+        assert_eq!(*container.get::<i32>().await.unwrap(), 400);
+        assert_eq!(*container.get::<f32>().await.unwrap(), 300f32);
+        assert_eq!(*container.get::<bool>().await.unwrap(), true);
     }
 
     #[tokio::test]
     async fn test_proxy_service() {
-        println!("========================================: test_proxy_service");
-        service_container().set_type(true);
+        service_container().set_type(true).await;
         let container = ServiceContainer::proxy();
 
-        let is_true: Option<bool> = container.get_type();
-        let an_i32: Option<i32> = container.get_type();
+        let is_true: Option<bool> = container.get_type().await;
+        let an_i32: Option<i32> = container.get_type().await;
 
         assert_eq!(is_true, Some(true));
         assert_eq!(an_i32, None);
 
-        container.set_type(30000);
-        let rate_per_hour: Option<i32> = container.get_type();
+        container.set_type(30000).await;
+        let rate_per_hour: Option<i32> = container.get_type().await;
         assert_eq!(rate_per_hour, Some(30000));
     }
 
@@ -663,7 +600,7 @@ mod test {
     #[tokio::test]
     async fn test_injecting_stored_instance() {
         let container = ServiceContainer::proxy();
-        container.set_type(Counter { start_point: 6000 });
+        container.set_type(Counter { start_point: 6000 }).await;
 
         let counter = container.inject_all::<Counter>().await;
         assert_eq!(counter.start_point, 6000usize);
@@ -676,7 +613,7 @@ mod test {
         let user = container.singleton::<User>().await;
         assert_eq!(user.id, 1000);
 
-        container.set_type(User { id: 88 });
+        container.set_type(User { id: 88 }).await;
         let user = container.singleton::<User>().await;
         assert_eq!(user.id, 1000);
     }
@@ -699,10 +636,10 @@ mod test {
     #[tokio::test]
     async fn test_get_or_inject_raw_type() {
         let container = ServiceContainer::proxy();
-        assert_eq!(container.get_type::<User>().is_none(), true);
+        assert_eq!(container.get_type::<User>().await.is_none(), true);
 
         let a_user = container.get_type_or_inject::<User>().await;
-        let a_user2 = container.get_type::<User>();
+        let a_user2 = container.get_type::<User>().await;
 
         assert_eq!(a_user.id, 1000);
         assert_eq!(a_user2.is_some(), true);
@@ -713,10 +650,10 @@ mod test {
     async fn test_get_or_inject_service_type() {
         let container = ServiceContainer::proxy();
 
-        assert_eq!(container.get::<User>().is_none(), true);
+        assert_eq!(container.get::<User>().await.is_none(), true);
 
         let a_user = container.get_or_inject::<User>().await;
-        let a_user2 = container.get::<User>();
+        let a_user2 = container.get::<User>().await;
 
         assert_eq!(a_user.id, 1000);
         assert_eq!(a_user2.is_some(), true);
@@ -727,30 +664,30 @@ mod test {
     async fn test_forgetting_a_type() {
         let container = ServiceContainer::proxy();
 
-        assert_eq!(container.get_type::<usize>(), None);
+        assert_eq!(container.get_type::<usize>().await, None);
 
-        container.set_type(300_usize);
-        assert_eq!(container.get_type::<usize>(), Some(300_usize));
+        container.set_type(300_usize).await;
+        assert_eq!(container.get_type::<usize>().await, Some(300_usize));
 
-        let value = container.forget_type::<usize>();
+        let value = container.forget_type::<usize>().await;
         assert_eq!(value.is_some(), true);
 
-        assert_eq!(container.get_type::<usize>(), None);
+        assert_eq!(container.get_type::<usize>().await, None);
     }
 
     #[tokio::test]
     async fn test_forgetting_service_a_type() {
         let container = ServiceContainer::proxy();
 
-        assert_eq!(container.get::<usize>().is_none(), true);
+        assert_eq!(container.get::<usize>().await.is_none(), true);
 
-        container.set(300_usize);
-        assert_eq!(*container.get::<usize>().unwrap(), 300_usize);
+        container.set(300_usize).await;
+        assert_eq!(*container.get::<usize>().await.unwrap(), 300_usize);
 
-        let value = container.forget::<usize>();
+        let value = container.forget::<usize>().await;
         assert_eq!(value.is_some(), true);
 
-        assert_eq!(container.get::<usize>().is_none(), true);
+        assert_eq!(container.get::<usize>().await.is_none(), true);
     }
 
     #[tokio::test]
@@ -758,9 +695,9 @@ mod test {
         struct UserName(String);
 
         let container = ServiceContainer::proxy();
-        container.set(UserName("foobar".to_string()));
+        container.set(UserName("foobar".to_string())).await;
 
-        let result: Option<Service<_>> = container.get::<UserName>();
+        let result: Option<Service<_>> = container.get::<UserName>().await;
 
         assert_eq!(true, result.is_some());
         assert_eq!("foobar", result.unwrap().as_ref().0);
@@ -768,13 +705,16 @@ mod test {
 
     #[tokio::test]
     async fn test_resolver() {
-        println!("========================================: test_resolver");
-
         let container = ServiceContainer::proxy();
 
-        container.resolver::<String>(|_| Box::pin(async { "foo".to_string() }));
+        container
+            .resolver::<String>(|_| Box::pin(async { "foo".to_string() }))
+            .await;
 
-        assert_eq!(container.get_type::<String>(), Some("foo".to_string()),);
+        assert_eq!(
+            container.get_type::<String>().await,
+            Some("foo".to_string()),
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -784,20 +724,22 @@ mod test {
         #[derive(Debug, Clone, PartialEq)]
         struct Special(String);
 
-        container.resolver_once::<Special>(|c| {
-            Box::pin(async move {
-                let counter: i32 = c.get_type().unwrap_or_default();
-                c.set_type(counter + 1);
-                Special(format!("id:{counter}"))
+        container
+            .resolver_once::<Special>(|c| {
+                Box::pin(async move {
+                    let counter: i32 = c.get_type().await.unwrap_or_default();
+                    c.set_type(counter + 1).await;
+                    Special(format!("id:{counter}"))
+                })
             })
-        });
+            .await;
 
         assert_eq!(
-            container.get_type::<Special>(),
+            container.get_type::<Special>().await,
             Some(Special("id:0".to_string()))
         );
         assert_eq!(
-            container.get_type::<Special>(),
+            container.get_type::<Special>().await,
             Some(Special("id:0".to_string())),
             "ID should have been zero (0)"
         );
@@ -807,16 +749,20 @@ mod test {
     async fn test_soft_resolving() {
         let container = ServiceContainer::proxy();
 
-        container.resolver(|_| Box::pin(async { SoftCounter(1) }));
-        container.soft_resolver(|_| Box::pin(async { SoftCounter(100) }));
+        container
+            .resolver(|_| Box::pin(async { SoftCounter(1) }))
+            .await;
+        container
+            .soft_resolver(|_| Box::pin(async { SoftCounter(100) }))
+            .await;
 
         #[derive(Debug, Clone, PartialEq)]
         struct SoftCounter(i32);
 
-        let counter: SoftCounter = container.get_type().unwrap();
+        let counter: SoftCounter = container.get_type().await.unwrap();
         assert_eq!(counter.0, 1);
 
-        let counter: SoftCounter = container.get_type().unwrap();
+        let counter: SoftCounter = container.get_type().await.unwrap();
         assert_ne!(counter.0, 100);
     }
 
@@ -824,12 +770,14 @@ mod test {
     async fn test_soft_resolving2() {
         let container = ServiceContainer::proxy();
 
-        container.soft_resolver(|_| Box::pin(async { SoftCounter(100) }));
+        container
+            .soft_resolver(|_| Box::pin(async { SoftCounter(100) }))
+            .await;
 
         #[derive(Debug, Clone, PartialEq)]
         struct SoftCounter(i32);
 
-        let counter: SoftCounter = container.get_type().unwrap();
+        let counter: SoftCounter = container.get_type().await.unwrap();
         assert_eq!(counter.0, 100);
     }
 }

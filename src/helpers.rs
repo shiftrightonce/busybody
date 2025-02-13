@@ -70,21 +70,21 @@ where
 /// by using a resolver or cloning an existing instance in the container
 ///
 /// The global service container is used.
-pub fn resolve_all<Args>() -> Args
+pub async fn resolve_all<Args>() -> Args
 where
     Args: Resolver,
 {
-    Args::resolve(&service_container())
+    Args::resolve(&service_container()).await
 }
 
 /// Given a tuple of types, this function will try to resolve them
 /// by using a resolver or cloning an existing instance in the container
 ///
-pub fn resolve_all_with<Args>(ci: &ServiceContainer) -> Args
+pub async fn resolve_all_with<Args>(ci: &ServiceContainer) -> Args
 where
     Args: Resolver,
 {
-    Args::resolve(ci)
+    Args::resolve(ci).await
 }
 
 /// Takes an async function or closure, a reference to the service container and execute it
@@ -111,7 +111,7 @@ pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
 /// wrapped in a `Service<T>` that is currently registered in the service
 /// container.
 /// The global service container is used as the resolver.
-pub async fn service<T: 'static>() -> Service<T> {
+pub async fn service<T: Send + Sync + 'static>() -> Service<T> {
     service_container().service().await
 }
 
@@ -155,26 +155,26 @@ pub async fn get_type_or_inject_with<T: Injectable + Clone + Send + Sync + 'stat
 
 /// Tries to get an instance of the type if one exist in the container
 /// This function uses the global container
-pub fn get_type<T: Clone + 'static>() -> Option<T> {
-    service_container().get_type()
+pub async fn get_type<T: Clone + 'static>() -> Option<T> {
+    service_container().get_type().await
 }
 
 /// Tries to get an instance of the type's service if one exist in the container
 /// This function uses the global container
-pub fn get_service<T: 'static>() -> Option<Service<T>> {
-    service_container().get_type()
+pub async fn get_service<T: 'static>() -> Option<Service<T>> {
+    service_container().get_type().await
 }
 
 /// Removes the registered instance of the type specified and returns it
 /// This function uses the global container
-pub fn forget_type<T: 'static>() -> Option<Box<T>> {
-    service_container().forget_type()
+pub async fn forget_type<T: 'static>() -> Option<Box<T>> {
+    service_container().forget_type().await
 }
 
 /// Removes the registered service instance of the type specified and returns it
 /// This function uses the global container
-pub fn forget<T: 'static>() -> Option<Box<Service<T>>> {
-    service_container().forget()
+pub async fn forget<T: 'static>() -> Option<Box<Service<T>>> {
+    service_container().forget().await
 }
 
 /// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
@@ -197,9 +197,9 @@ pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
 /// Register a service instance
 /// The instance is registered with the global service container
 /// This function uses the global container
-pub fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+pub async fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
-    container.set(ext);
+    container.set(ext).await;
 
     container
 }
@@ -207,9 +207,9 @@ pub fn register_service<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
 /// Register a type instance
 /// The instance is registered with the global service container
 /// This function uses the global container
-pub fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+pub async fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
-    container.set_type(ext);
+    container.set_type(ext).await;
 
     container
 }
@@ -218,9 +218,9 @@ pub fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceCon
 /// Same as `register_type`
 /// The instance is registered with the global service container
 /// This function uses the global container
-pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+pub async fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
-    container.set_type(ext);
+    container.set_type(ext).await;
 
     container
 }
@@ -229,10 +229,13 @@ pub fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContaine
 /// an instance of the specified type is requested
 /// This closure will override existing closure for this type
 ///
-pub fn resolver<T: Clone + Send + Sync + 'static>(
+pub async fn resolver<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    ServiceContainerBuilder::new().resolver(callback).build()
+    ServiceContainerBuilder::new()
+        .resolver(callback)
+        .await
+        .build()
 }
 
 /// Registers a closure that will be call each time
@@ -244,11 +247,12 @@ pub fn resolver<T: Clone + Send + Sync + 'static>(
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub fn resolver_once<T: Clone + Send + Sync + 'static>(
+pub async fn resolver_once<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
         .resolver_once(callback)
+        .await
         .build()
 }
 
@@ -259,11 +263,12 @@ pub fn resolver_once<T: Clone + Send + Sync + 'static>(
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
+pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
         .soft_resolver(callback)
+        .await
         .build()
 }
 
@@ -276,11 +281,12 @@ pub fn soft_resolver<T: Clone + Send + Sync + 'static>(
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
+pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
     ServiceContainerBuilder::new()
         .soft_resolver_once(callback)
+        .await
         .build()
 }
 
