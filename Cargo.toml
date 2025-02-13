@@ -1,6 +1,6 @@
 [package]
 name = "busybody"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 description = "Service Container and Dependency injector crate"
@@ -14,7 +14,12 @@ categories = ["asynchronous", "web-programming"]
 [dependencies]
 futures = "0.3"
 async-trait = "0.1"
-tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1", features = [
+  "macros",
+  "rt",
+  "rt-multi-thread",
+  "sync",
+] }
 ulid = "1"
 
 
