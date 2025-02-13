@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-02-13
+
+### Features
+
+- [**breaking**] Made the crate fully async
+
+### Example
+
+- Update examples to use the async function/methods
+
 ## [0.4.2] - 2025-02-10
 
 ### Bug Fixes
