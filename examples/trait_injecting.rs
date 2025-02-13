@@ -9,7 +9,9 @@ async fn main() {
     println!("my greeter greet: {}", greeter.greet());
 
     //2. An instance of MyGreeterProvider is created that uses a third party greeter
-    busybody::helpers::service_container().set_type(MyGreeterProvider::new(ThirdPartyGreeter));
+    busybody::helpers::service_container()
+        .set_type(MyGreeterProvider::new(ThirdPartyGreeter))
+        .await;
 
     //3. The following call to provide a "greeter provider" will use the third party greeter
     let third_party_greeter: MyGreeterProvider = busybody::helpers::provide().await;
@@ -59,11 +61,11 @@ impl Deref for MyGreeterProvider {
 impl busybody::Injectable for MyGreeterProvider {
     async fn inject(container: &busybody::ServiceContainer) -> Self {
         // Get a registered instance or create and register a new one
-        match container.get_type::<Self>() {
+        match container.get_type::<Self>().await {
             Some(exiting) => exiting,
             None => {
                 let instance = Self(Service::new(Box::new(MyGreeter)));
-                container.set_type(instance).get_type().unwrap()
+                container.set_type(instance).await.get_type().await.unwrap()
             }
         }
     }

@@ -84,9 +84,9 @@ impl HandlerExecutionTime {
 async fn uptime() -> impl Responder {
     // 5. Ask for an instance of HandlerExecutionTime to be created and provided
     let timer = busybody::helpers::provide::<HandlerExecutionTime>().await;
-    let mut rang = rand::thread_rng();
+    let mut rang = rand::rng();
 
-    for _ in 0..rang.gen_range(1..20000000) {
+    for _ in 0..rang.random_range(1..20000000) {
         // pretend we are doing something that could take some time....
     }
 
@@ -97,9 +97,9 @@ async fn uptime() -> impl Responder {
 async fn uptime2() -> impl Responder {
     // 5. Ask for an instance of HandlerExecutionTime to be created and provided
     let timer = busybody::helpers::provide::<HandlerExecutionTime>().await;
-    let mut rang = rand::thread_rng();
+    let mut rang = rand::rng();
 
-    for _ in 0..rang.gen_range(1..40000000) {
+    for _ in 0..rang.random_range(1..40000000) {
         // pretend we are doing something that could take some time....
     }
 

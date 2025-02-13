@@ -11,7 +11,7 @@ struct DbClient {
 struct RedisClient(usize);
 
 // Container is setup here
-fn setup_container() {
+async fn setup_container() {
     let meaning_of_life = 44;
     let connection = DbClient {
         id: 9343434,
@@ -21,24 +21,27 @@ fn setup_container() {
     // 1. Using the service builder, register services
     _ = ServiceContainerBuilder::new()
         .register(meaning_of_life)
+        .await
         .service(connection)
+        .await
         .build();
 }
 
-fn main() {
-    setup_container();
+#[tokio::main]
+async fn main() {
+    setup_container().await;
 
     // 2. Get things from the container by using the function `service_container`
-    let meaning = service_container().get_type::<i32>(); // `get_type` returns things set with `register`
-    let client = service_container().get::<DbClient>();
+    let meaning = service_container().get_type::<i32>().await; // `get_type` returns things set with `register`
+    let client = service_container().get::<DbClient>().await;
 
     // 3. Add or update things in the container via the function `service_container`
-    service_container().set(RedisClient(34343_usize)); // set Wraps value in a Service<T>
+    service_container().set(RedisClient(34343_usize)).await; // set Wraps value in a Service<T>
 
     println!("meaning of life: {:#?}", meaning.unwrap());
     println!("db connection: {:#?}", client.unwrap());
     println!(
         "redis client: {:#?}",
-        service_container().get::<RedisClient>().unwrap()
+        service_container().get::<RedisClient>().await.unwrap()
     ) // Get back the wrapped type
 }

@@ -4,7 +4,10 @@ use busybody::{helpers, Injectable, Service, ServiceContainerBuilder};
 #[tokio::main]
 async fn main() {
     // 1. Setup the container
-    _ = ServiceContainerBuilder::new().service(IdGenerator).build();
+    _ = ServiceContainerBuilder::new()
+        .service(IdGenerator)
+        .await
+        .build();
 
     // 2. Inject and call the function "make_sales_order"
     let new_sales_order = helpers::inject_and_call(make_sales_order).await;

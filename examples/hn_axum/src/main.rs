@@ -12,7 +12,7 @@ async fn main() {
                 enable_caching: true,
                 ..hn_api::Config::default()
             };
-            service_container().set_type(config);
+            service_container().set_type(config).await;
         }
     }
 

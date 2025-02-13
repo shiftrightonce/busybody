@@ -8,6 +8,7 @@ async fn main() -> std::io::Result<()> {
     _ = ServiceContainerBuilder::new()
         // 2. Register an instance of "ServerUptime" as a service ie: Service<ServerUptime>
         .service(ServerUptime::new())
+        .await
         .build();
 
     // 3. Setup actix web application
@@ -23,7 +24,7 @@ async fn main() -> std::io::Result<()> {
 
 async fn uptime() -> impl Responder {
     // 4. Get the service container via the function `service_container`
-    let time_keeper = service_container().get::<ServerUptime>().unwrap();
+    let time_keeper = service_container().get::<ServerUptime>().await.unwrap();
     HttpResponse::Ok().content_type("text/html").body(format!(
         "<h1><center>Up time<br/>{}</center></h1>",
         time_keeper.duration()

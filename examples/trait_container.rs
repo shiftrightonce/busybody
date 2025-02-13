@@ -5,7 +5,8 @@ use rand::Rng;
 use std::fmt::Debug;
 use std::ops::Deref;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // 1. Setup the container by using the service builder
     let container = ServiceContainerBuilder::new().build();
 
@@ -14,13 +15,15 @@ fn main() {
     // 2. Inject a concrete implementation of a trait.
     //    In this case we are selecting an implementation randomly
     if rng.random_range(2..17) % 2 == 0 {
-        container.set(AdderProvider::new(MyAdder1 { id: 2000 }));
+        container
+            .set(AdderProvider::new(MyAdder1 { id: 2000 }))
+            .await;
     } else {
-        container.set(AdderProvider::new(MyAdder2));
+        container.set(AdderProvider::new(MyAdder2)).await;
     }
 
     // 3. Get the AdderProvider
-    let foo = container.get::<AdderProvider>().unwrap();
+    let foo = container.get::<AdderProvider>().await.unwrap();
 
     let number1: i32 = rng.random_range(0..200);
     let number2: i32 = rng.random_range(3..100);

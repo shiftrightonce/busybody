@@ -15,7 +15,7 @@ async fn main() -> std::io::Result<()> {
                 enable_caching: true,
                 ..Config::default()
             };
-            service_container().set_type(config);
+            service_container().set_type(config).await;
         }
     }
 

@@ -26,11 +26,11 @@ impl Default for Config {
 #[busybody::async_trait]
 impl busybody::Injectable for Config {
     async fn inject(container: &busybody::ServiceContainer) -> Self {
-        if let Some(config) = container.get_type::<Self>() {
+        if let Some(config) = container.get_type::<Self>().await {
             config
         } else {
             let conf = Self::default();
-            container.set_type(conf.clone());
+            container.set_type(conf.clone()).await;
             conf
         }
     }

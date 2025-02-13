@@ -11,7 +11,7 @@ async fn main() {
     // 2. A proxy container is created here
     let container = ServiceContainer::proxy();
     // An instance of the shipping and handling struct is registered
-    container.set_type(ShippingAndHandling(10.50));
+    container.set_type(ShippingAndHandling(10.50)).await;
 
     // 3. Using `inject_and_call_with`, the proxy container is used as the first source
     //    of dependencies resolving
@@ -45,7 +45,7 @@ struct ShippingAndHandling(f32);
 #[busybody::async_trait]
 impl Injectable for ShippingAndHandling {
     async fn inject(c: &busybody::ServiceContainer) -> Self {
-        c.get_type().unwrap_or(Self(5.50))
+        c.get_type().await.unwrap_or(Self(5.50))
     }
 }
 

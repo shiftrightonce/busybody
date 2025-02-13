@@ -36,7 +36,7 @@ impl HackerNewsClient {
 #[busybody::async_trait]
 impl busybody::Injectable for HackerNewsClient {
     async fn inject(container: &busybody::ServiceContainer) -> Self {
-        let config = if let Some(config) = container.get_type::<Config>() {
+        let config = if let Some(config) = container.get_type::<Config>().await {
             config
         } else {
             busybody::helpers::provide::<Config>().await

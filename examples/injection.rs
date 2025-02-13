@@ -9,6 +9,7 @@ async fn main() {
         .service(AppConfig {
             api_token: "token12345".into(),
         })
+        .await
         .build();
 
     // Point 3. Auto instantiate an instance of `DailyInvoicesFetcher`
@@ -68,11 +69,15 @@ impl DailyInvoicesFetcher {
 #[busybody::async_trait]
 impl Injectable for DailyInvoicesFetcher {
     async fn inject(container: &ServiceContainer) -> Self {
-        let mut rng = rand::rng(); // for random numbers generation
-        let api_token = container.get::<AppConfig>().unwrap().api_token.clone(); // Using the container, we are plucking the registered AppConfig's instance
+        let api_token = container
+            .get::<AppConfig>()
+            .await
+            .unwrap()
+            .api_token
+            .clone(); // Using the container, we are plucking the registered AppConfig's instance
         Self {
             api_token,
-            id: rng.random(),
+            id: rand::random(),
         } // Create a new instance for each call
     }
 }

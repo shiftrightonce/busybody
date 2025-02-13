@@ -5,7 +5,9 @@ async fn main() {
     // 1. Setup the container
     _ = ServiceContainerBuilder::new()
         .register(200) // Register an i32 value that is not wrapped in Service<T>
+        .await
         .service(400) // Register an i32 value that is wrapped in Service<T>
+        .await
         .build();
 
     // 2. `inject_and_call` calls the provided function/closure, injecting all of it's required parameters
