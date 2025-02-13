@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-02-13
+
+### Bug Fixes
+
+- Remove `Clone` trait when setting
+
 ## [0.5.0] - 2025-02-13
 
 ### Features
