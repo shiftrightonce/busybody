@@ -232,7 +232,7 @@ impl ServiceContainer {
     }
 
     /// Stores the instance
-    pub async fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
+    pub async fn set_type<T: Send + Sync + 'static>(&self, value: T) -> &Self {
         self.container.set(value).await;
         self
     }

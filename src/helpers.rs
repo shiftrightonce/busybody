@@ -218,7 +218,7 @@ pub async fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<Serv
 /// Same as `register_type`
 /// The instance is registered with the global service container
 /// This function uses the global container
-pub async fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+pub async fn set_type<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
     container.set_type(ext).await;
 
