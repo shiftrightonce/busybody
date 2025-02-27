@@ -269,6 +269,24 @@ impl ServiceContainer {
 
         self
     }
+    pub async fn resolvable<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.container
+            .resolver(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
+        self
+    }
+
+    pub async fn resolvable_once<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.resolver_once(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
+        self
+    }
+
+    pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.soft_resolver(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
+        self
+    }
 
     /// Registers a closure that will be call each time
     /// an instance of the specified type is requested
@@ -433,6 +451,31 @@ impl ServiceContainerBuilder {
         callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
         self.service_container.resolver(callback).await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// This call will override existing resolver for this type
+    pub async fn resolvable<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.resolvable::<T>().await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// This call will override existing resolver for this type
+    /// The returned instance will be cache and use fro subsequent resolving
+    pub async fn resolvable_once<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.resolvable_once::<T>().await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// If a resolver already exist, this call will gracefully fail
+    pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.soft_resolvable::<T>().await;
         self
     }
 
@@ -792,5 +835,18 @@ mod test {
 
         let counter: SoftCounter = container.get_type().await.unwrap();
         assert_eq!(counter.0, 100);
+    }
+
+    #[tokio::test]
+    async fn test_forgetting_resolver() {
+        let container = ServiceContainer::proxy();
+        container.resolver(|_| Box::pin(async { 100 })).await;
+
+        let number = container.get_type::<i32>().await;
+        assert_eq!(number.is_some(), true);
+
+        container.forget_resolver::<i32>().await;
+        let number2 = container.get_type::<i32>().await;
+        assert_eq!(number2.is_none(), true);
     }
 }
