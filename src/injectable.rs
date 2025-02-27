@@ -1,8 +1,11 @@
+use std::any::type_name;
+
 use crate::{container::ServiceContainer, helpers::service_container};
 use async_trait::async_trait;
 use futures::join;
 
 #[async_trait]
+#[deprecated(note = "implement Resolver instead")]
 pub trait Injectable {
     /// The required method that makes a type injectable
     async fn inject(container: &ServiceContainer) -> Self;
@@ -198,21 +201,22 @@ impl Injectable for String {
 #[async_trait]
 impl<T> Injectable for Option<T>
 where
-    T: Injectable + Clone + Send + Sync + 'static,
+    T: Clone + Send + Sync + 'static,
 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.get_type().await.unwrap()
+        c.get_type().await
     }
 }
 
 #[async_trait]
-impl<T, E> Injectable for Result<T, E>
+impl<T> Injectable for Result<T, String>
 where
-    T: Injectable + Clone + Send + Sync + 'static,
-    E: Injectable + Clone + Send + Sync + 'static,
+    T: Clone + Send + Sync + 'static,
 {
     async fn inject(c: &ServiceContainer) -> Self {
-        c.proxy_value().await.unwrap()
+        c.get_type()
+            .await
+            .ok_or(format!("could not inject: {:?}", type_name::<T>()))
     }
 }
 

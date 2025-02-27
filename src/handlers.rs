@@ -3,17 +3,17 @@ use futures::Future;
 pub trait Handler<Args> {
     type Output;
     type Future: Future<Output = Self::Output>;
-    fn call(&self, args: Args) -> Self::Future;
+    fn call(&mut self, args: Args) -> Self::Future;
 }
 
 impl<Func, Fut> Handler<()> for Func
 where
-    Func: Fn() -> Fut + 'static,
+    Func: FnMut() -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
     type Future = Fut;
-    fn call(&self, _: ()) -> Self::Future {
+    fn call(&mut self, _: ()) -> Self::Future {
         (self)()
     }
 }
@@ -21,26 +21,26 @@ where
 // 1 Argument
 impl<Func, Arg1, Fut> Handler<(Arg1,)> for Func
 where
-    Func: Fn(Arg1) -> Fut + 'static,
+    Func: FnMut(Arg1) -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
     type Future = Fut;
-    fn call(&self, (arg1,): (Arg1,)) -> Self::Future {
+    fn call(&mut self, (arg1,): (Arg1,)) -> Self::Future {
         (self)(arg1)
     }
 }
 
 macro_rules! handler_func{
     ($($T: ident),*) => {
-        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: Fn($($T),+) -> Fut + 'static,
+        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: FnMut($($T),+) -> Fut + 'static,
         Fut: Future,
         {
             type Output = Fut::Output;
             type Future = Fut;
 
             #[allow(non_snake_case)]
-            fn call(&self, ($($T),+): ($($T),+)) -> Self::Future {
+            fn call(&mut self, ($($T),+): ($($T),+)) -> Self::Future {
                 (self)($($T),+)
             }
         }

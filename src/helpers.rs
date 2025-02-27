@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::{any::TypeId, sync::Arc};
 
 use futures::future::BoxFuture;
 
@@ -12,7 +12,8 @@ use crate::{
 /// Takes an async function or closure and executes it
 /// Require arguments are injected during the call
 /// The global service container is used for any resolving
-pub async fn inject_and_call<F, Args>(handler: F) -> F::Output
+#[deprecated(note = "use `resolve_and_call`")]
+pub async fn inject_and_call<F, Args>(mut handler: F) -> F::Output
 where
     F: Handler<Args>,
     Args: Injectable + 'static,
@@ -24,7 +25,8 @@ where
 /// Takes an async function or closure and executes it.
 /// Require arguments are injected during the call.
 /// The container to use is provided by the caller.
-pub async fn inject_and_call_with<F, Args>(ci: &ServiceContainer, handler: F) -> F::Output
+#[deprecated(note = "use `resolve_and_call_with`")]
+pub async fn inject_and_call_with<F, Args>(ci: &ServiceContainer, mut handler: F) -> F::Output
 where
     F: Handler<Args>,
     Args: Injectable + 'static,
@@ -36,6 +38,7 @@ where
 /// Given a tuple of types, this function will try to resolve them
 /// and return a tuple of instances.
 /// The global service container is used.
+#[deprecated(note = "use `resolve_all`")]
 pub async fn inject_all<Args>() -> Args
 where
     Args: Injectable + 'static,
@@ -46,6 +49,7 @@ where
 /// Given a tuple of types, this function will try to resolve them
 /// and return a tuple of instances.
 /// The service container to used is provided by the caller.
+#[deprecated(note = "resolve_all_with")]
 pub async fn inject_all_with<Args>(container: &ServiceContainer) -> Args
 where
     Args: Injectable + 'static,
@@ -103,6 +107,7 @@ where
 /// Given a type, this function will try to call the `inject` method
 /// implemented by the type.
 /// This function uses the global container
+#[deprecated(note = "use `get_type`")]
 pub async fn provide<T: Injectable + Send + Sync + 'static>() -> T {
     service_container().provide().await
 }
@@ -121,6 +126,7 @@ pub async fn service<T: Send + Sync + 'static>() -> Service<T> {
 /// a copy is returned. Subsequent call requesting instance of that type will
 /// return the instance in the service container.
 /// The global service container is used as the resolver.
+#[deprecated(note = "register a `resolve_once`` handler and then use `get` or `get_type`")]
 pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>() -> Singleton<T> {
     service_container().singleton().await
 }
@@ -140,6 +146,7 @@ pub fn make_builder() -> ServiceContainerBuilder {
 
 /// Tries to get an instance of the type if one exist in the container.
 /// If one does not exist, it tries to do an injection
+#[deprecated(note = "use `get_type`")]
 pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>() -> T {
     service_container().get_type_or_inject().await
 }
@@ -147,6 +154,7 @@ pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>()
 /// Tries to get an instance of the type if one exist in the container.
 /// If one does not exist, it tries to do an injection.
 /// The container to used is provided by the caller
+#[deprecated(note = "use a proxy container and call `get_type`")]
 pub async fn get_type_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
     container: &ServiceContainer,
 ) -> T {
@@ -162,7 +170,7 @@ pub async fn get_type<T: Clone + 'static>() -> Option<T> {
 /// Tries to get an instance of the type's service if one exist in the container
 /// This function uses the global container
 pub async fn get_service<T: 'static>() -> Option<Service<T>> {
-    service_container().get_type().await
+    service_container().get::<T>().await
 }
 
 /// Removes the registered instance of the type specified and returns it
@@ -180,6 +188,7 @@ pub async fn forget<T: 'static>() -> Option<Box<Service<T>>> {
 /// Tries to get an instance of the type wrapped in a `Service<T>` from the container.
 /// If one does not exist, it tries to do an injection
 /// This function uses the global container
+#[deprecated(note = "use `get`")]
 pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>() -> Service<T> {
     service_container().get_or_inject().await
 }
@@ -188,6 +197,7 @@ pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>() -> Service<T
 /// If one does not exist, it tries to do an injection.
 /// The container to used is provided by the caller
 /// This function uses the global container
+#[deprecated(note = "call `get` on the container you are about to pass")]
 pub async fn get_or_inject_with<T: Injectable + Clone + Send + Sync + 'static>(
     container: &ServiceContainer,
 ) -> Service<T> {
@@ -218,7 +228,7 @@ pub async fn register_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<Serv
 /// Same as `register_type`
 /// The instance is registered with the global service container
 /// This function uses the global container
-pub async fn set_type<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
+pub async fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer> {
     let container = service_container();
     container.set_type(ext).await;
 
@@ -228,14 +238,38 @@ pub async fn set_type<T: Send + Sync + 'static>(ext: T) -> Arc<ServiceContainer>
 /// Registers a closure that will be call each time
 /// an instance of the specified type is requested
 /// This closure will override existing closure for this type
+/// This function uses the global container
 ///
 pub async fn resolver<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    ServiceContainerBuilder::new()
-        .resolver(callback)
-        .await
-        .build()
+    let c = service_container();
+    c.resolver(callback).await;
+    c
+}
+
+/// Registers a type as resolvable
+/// Existing resolver for this type will be replaced
+/// This function uses the global container
+///
+pub async fn resolvable<T: Resolver + Clone + Send + Sync + 'static>() -> Arc<ServiceContainer> {
+    let c = service_container();
+    c.resolvable::<T>().await;
+    c
+}
+
+pub async fn resolvable_once<T: Resolver + Clone + Send + Sync + 'static>() -> Arc<ServiceContainer>
+{
+    let c = service_container();
+    c.resolvable_once::<T>().await;
+    c
+}
+
+pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>() -> Arc<ServiceContainer>
+{
+    let c = service_container();
+    c.soft_resolvable::<T>().await;
+    c
 }
 
 /// Registers a closure that will be call each time
@@ -250,10 +284,9 @@ pub async fn resolver<T: Clone + Send + Sync + 'static>(
 pub async fn resolver_once<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    ServiceContainerBuilder::new()
-        .resolver_once(callback)
-        .await
-        .build()
+    let c = service_container();
+    c.resolver_once(callback).await;
+    c
 }
 
 /// Registers a closure that will be call each time
@@ -266,10 +299,9 @@ pub async fn resolver_once<T: Clone + Send + Sync + 'static>(
 pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    ServiceContainerBuilder::new()
-        .soft_resolver(callback)
-        .await
-        .build()
+    let c = service_container();
+    c.soft_resolver(callback).await;
+    c
 }
 
 /// Registers a closure that will be call each time
@@ -284,10 +316,9 @@ pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
 pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
     callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
 ) -> Arc<ServiceContainer> {
-    ServiceContainerBuilder::new()
-        .soft_resolver_once(callback)
-        .await
-        .build()
+    let c = service_container();
+    c.soft_resolver_once(callback).await;
+    c
 }
 
 /// Returns a new proxy service container
