@@ -209,6 +209,16 @@ where
 }
 
 #[async_trait]
+impl<T> Injectable for Result<T, ()>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    async fn inject(c: &ServiceContainer) -> Self {
+        c.get_type().await.ok_or(())
+    }
+}
+
+#[async_trait]
 impl<T> Injectable for Result<T, String>
 where
     T: Clone + Send + Sync + 'static,
