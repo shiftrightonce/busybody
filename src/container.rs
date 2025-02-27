@@ -232,7 +232,16 @@ impl ServiceContainer {
     }
 
     /// Stores the instance
-    pub async fn set_type<T: Send + Sync + 'static>(&self, value: T) -> &Self {
+    pub async fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
+        self.resolver(move |_| {
+            let c = value.clone();
+            Box::pin(async move { c })
+        })
+        .await;
+        self
+    }
+
+    pub(crate) async fn remember<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
         self.container.set(value).await;
         self
     }
