@@ -2,10 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2025-02-27
+
+### Bug Fixes
+
+- Implement resolver for common types
+
 ## [0.5.2] - 2025-02-27
 
 ### Bug Fixes
 
+- Remove `Clone` trait when setting
 - [**breaking**] Start deprecating the injectable feature
 
 ### Features

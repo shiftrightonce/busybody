@@ -256,6 +256,10 @@ impl ServiceContainer {
         None
     }
 
+    pub(crate) async fn instance<T: Clone + 'static>(&self) -> Option<T> {
+        self.container.get::<T>(self.make_reference()).await
+    }
+
     /// Stores the instance
     pub async fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
         self.resolver(move |_| {
