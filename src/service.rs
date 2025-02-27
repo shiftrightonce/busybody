@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{container::ServiceContainer, injectable::Injectable};
+use crate::{container::ServiceContainer, injectable::Injectable, Resolver};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -15,6 +15,16 @@ impl<T: Send + Sync + 'static> Injectable for Service<T> {
                 panic!("Could not find service: {:?}", std::any::type_name::<T>())
             }
         }
+    }
+}
+
+#[async_trait]
+impl<T: Send + Sync + 'static> Resolver for Service<T>
+where
+    T: Resolver,
+{
+    async fn resolve(container: &ServiceContainer) -> Self {
+        Service::new(T::resolve(container).await)
     }
 }
 

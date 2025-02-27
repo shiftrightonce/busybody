@@ -1,3 +1,5 @@
+use std::any::type_name;
+
 use crate::ServiceContainer;
 
 #[async_trait::async_trait]
@@ -19,7 +21,9 @@ where
     A: Clone + Send + Sync + 'static,
 {
     async fn resolve(c: &ServiceContainer) -> Self {
-        (c.get_type::<A>().await.unwrap(),)
+        (c.get_type::<A>()
+            .await
+            .expect(&format!("could not resolve: {}", type_name::<A>())),)
     }
 }
 
@@ -30,7 +34,7 @@ macro_rules! tuple_from_resolvable {
         #[async_trait::async_trait]
         impl<$($T: Clone + Send + Sync  + 'static),+> Resolver for ($($T,)+) {
             async fn resolve(c: &ServiceContainer) -> Self {
-                ($(c.get_type::<$T>().await.unwrap()),+)
+                ($(c.get_type::<$T>().await.expect(&format!("could not resolve: {}", type_name::<A>()))),+)
             }
         }
     };

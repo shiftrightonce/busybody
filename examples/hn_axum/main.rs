@@ -1,20 +1,30 @@
 use axum::{extract::Path, routing::get, Json, Router};
-use busybody::helpers::service_container;
-use hn_api::{hacker_news_client::HackerNewsClientTrait, HackerNewsClientProvider};
+use busybody::{helpers::service_container, Service};
+use hacker_news_common::{
+    hacker_news_client::{self, HackerNewsClientTrait},
+    Config, HackerNewsClientProvider,
+};
+
+#[path = "../hacker_news_common/lib.rs"]
+mod hacker_news_common;
 
 #[tokio::main]
 async fn main() {
+    busybody::helpers::resolvable_once::<Service<HackerNewsClientProvider>>().await;
+
     // 1. By default, "enable_caching" is disabled in the config instance
     //    Passing "cache" when you starting the application will enable caching
+
+    let mut config = Config::default();
     if let Some(arg) = std::env::args().nth(1) {
         if arg == "cache" {
-            let config = hn_api::Config {
+            config = Config {
                 enable_caching: true,
-                ..hn_api::Config::default()
+                ..Config::default()
             };
-            service_container().set_type(config).await;
         }
     }
+    service_container().set_type(config).await;
 
     // 2. build our application with a route
     let app = Router::new()
@@ -29,7 +39,7 @@ async fn main() {
 
 async fn top_stories() -> Json<Vec<u32>> {
     // 3. Inject hacker news client provider
-    let list = busybody::helpers::singleton::<HackerNewsClientProvider>()
+    let list = busybody::helpers::service::<HackerNewsClientProvider>()
         .await
         .fetch_top_stories()
         .await
@@ -39,9 +49,9 @@ async fn top_stories() -> Json<Vec<u32>> {
 }
 
 // basic handler that responds with a static string
-async fn get_story(Path(id): Path<u32>) -> Json<hn_api::hacker_news_client::Story> {
+async fn get_story(Path(id): Path<u32>) -> Json<hacker_news_client::Story> {
     // 3. Inject hacker news client provider
-    let story = busybody::helpers::singleton::<HackerNewsClientProvider>()
+    let story = busybody::helpers::service::<HackerNewsClientProvider>()
         .await
         .fetch_story(id)
         .await

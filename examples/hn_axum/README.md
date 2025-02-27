@@ -2,7 +2,7 @@
 
 ---
 
-An application that fetches hacker news top stories and has the ability to fetch a story. Further requests can be cached
+An application that fetches hacker news top stories and has the ability to fetch a story. Requests can be cached. 
 
 **This example is identical to `hn_api` but `Actix Web` is replaced with `Axum`**
 

@@ -6,11 +6,11 @@ use std::{collections::HashMap, sync::RwLock};
 pub struct HackerNewsCacheClient {
     top_stories: RwLock<Vec<u32>>,
     stories: RwLock<HashMap<u32, Story>>,
-    client: busybody::Singleton<HackerNewsClient>,
+    client: HackerNewsClient,
 }
 
 impl HackerNewsCacheClient {
-    pub fn new(client: busybody::Singleton<HackerNewsClient>) -> Self {
+    pub fn new(client: HackerNewsClient) -> Self {
         Self {
             top_stories: RwLock::new(Vec::new()),
             stories: RwLock::new(HashMap::new()),
@@ -20,9 +20,9 @@ impl HackerNewsCacheClient {
 }
 
 #[busybody::async_trait]
-impl busybody::Injectable for HackerNewsCacheClient {
-    async fn inject(_: &busybody::ServiceContainer) -> Self {
-        Self::new(busybody::helpers::singleton::<HackerNewsClient>().await)
+impl busybody::Resolver for HackerNewsCacheClient {
+    async fn resolve(container: &busybody::ServiceContainer) -> Self {
+        Self::new(HackerNewsClient::resolve(container).await)
     }
 }
 

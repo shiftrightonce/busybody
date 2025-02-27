@@ -68,12 +68,31 @@ impl Container {
         self
     }
 
-    pub(crate) async fn forget<T: 'static>(&self) -> Option<Box<T>> {
+    pub(crate) async fn forget<T: 'static>(&self, ci: ServiceContainer) -> Option<Box<T>> {
         let mut lock = self.services.write().await;
         if let Some(raw) = lock.remove(&TypeId::of::<T>()) {
+            self.resolvers.write().await.remove(&TypeId::of::<T>());
             return raw.downcast().ok();
         }
+
+        let mut lock = self.resolvers.write().await;
+        if let Some(mutex) = lock.remove(&TypeId::of::<T>()) {
+            drop(lock);
+            let mut callback = mutex.lock().await;
+            return callback(ci).await.downcast::<T>().ok();
+        }
+
         None
+    }
+
+    pub(crate) async fn remove_resolver<T: 'static>(&self) -> bool {
+        if self.has_resolver::<T>().await {
+            let mut lock = self.resolvers.write().await;
+            lock.remove(&TypeId::of::<T>());
+            true
+        } else {
+            false
+        }
     }
 
     pub(crate) async fn resolver<T: Clone + Send + Sync + 'static>(
@@ -184,7 +203,11 @@ impl ServiceContainer {
     }
 
     pub async fn forget_type<T: 'static>(&self) -> Option<Box<T>> {
-        self.container.forget::<T>().await
+        self.container.forget::<T>(self.make_reference()).await
+    }
+
+    pub async fn forget_resolver<T: 'static>(&self) -> bool {
+        self.container.remove_resolver::<T>().await
     }
 
     pub async fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
@@ -193,6 +216,7 @@ impl ServiceContainer {
 
     /// Tries to find the instance of the type wrapped in `Service<T>`
     /// if an instance does not exist, one will be injected
+    #[deprecated(note = "use `get`")]
     pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
         let result = self.get::<T>().await;
 
@@ -206,6 +230,7 @@ impl ServiceContainer {
 
     /// Tries to find the instance of the type T
     /// if an instance does not exist, one will be injected
+    #[deprecated(note = "use `get_type`")]
     pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>(&self) -> T {
         let result = self.get_type::<T>().await;
         if result.is_none() {
@@ -232,7 +257,16 @@ impl ServiceContainer {
     }
 
     /// Stores the instance
-    pub async fn set_type<T: Send + Sync + 'static>(&self, value: T) -> &Self {
+    pub async fn set_type<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
+        self.resolver(move |_| {
+            let c = value.clone();
+            Box::pin(async move { c })
+        })
+        .await;
+        self
+    }
+
+    pub(crate) async fn remember<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
         self.container.set(value).await;
         self
     }
@@ -247,13 +281,30 @@ impl ServiceContainer {
     /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
     ///
-    ///       
     pub async fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
         callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
     ) -> &Self {
         self.container.resolver(callback).await;
 
+        self
+    }
+    pub async fn resolvable<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.container
+            .resolver(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
+        self
+    }
+
+    pub async fn resolvable_once<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.resolver_once(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
+        self
+    }
+
+    pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>(&self) -> &Self {
+        self.soft_resolver(|c| Box::pin(async move { T::resolve(&c).await }))
+            .await;
         self
     }
 
@@ -314,7 +365,8 @@ impl ServiceContainer {
     /// Injectable.
     ///
     /// This method does not check for existing instance
-    pub async fn inject_and_call<F, Args>(&self, handler: F) -> F::Output
+    #[deprecated(note = "use `resolve_and_call`")]
+    pub async fn inject_and_call<F, Args>(&self, mut handler: F) -> F::Output
     where
         F: Handler<Args>,
         Args: Injectable + 'static,
@@ -327,7 +379,7 @@ impl ServiceContainer {
     /// Require arguments are resolve either by a resolver or sourced from the service container
     ///
     /// This method will use an existing if one exist.
-    pub async fn resolve_and_call<F, Args>(&self, handler: F) -> F::Output
+    pub async fn resolve_and_call<F, Args>(&self, mut handler: F) -> F::Output
     where
         F: Handler<Args>,
         Args: Resolver,
@@ -351,6 +403,7 @@ impl ServiceContainer {
     /// The types must implement Injectable.
     ///
     /// This method does not check for existing instance of the types.
+    #[deprecated(note = "use `resolve_all`")]
     pub async fn inject_all<Args>(&self) -> Args
     where
         Args: Injectable + 'static,
@@ -361,6 +414,7 @@ impl ServiceContainer {
     /// Given a type, this method will try to call the `inject` method
     /// implemented on the type. It does not check the container for existing
     /// instance.
+    #[deprecated(note = "use `get`  or `get_type`")]
     pub async fn provide<T: Injectable + 'static>(&self) -> T {
         T::inject(self).await
     }
@@ -368,6 +422,7 @@ impl ServiceContainer {
     /// Given a type, this method will try to find an instance of the type
     /// wrapped in a `Service<T>` that is currently registered in the service
     /// container.
+    #[deprecated(note = "use `get`")]
     pub async fn service<T: Send + Sync + 'static>(&self) -> Service<T> {
         Service::inject(self).await
     }
@@ -376,8 +431,9 @@ impl ServiceContainer {
     /// type. If that fails, an instance of the type is
     /// initialized, wrapped in a `Service`, stored and
     /// a copy is returned. Subsequent calls requesting instance of that type will
-    /// returned the stored copy. If the this is a proxy container, the instance will be dropped when
+    /// returned the stored copy. If this is a proxy container, the instance will be dropped when
     /// this container goes out of scope.
+    #[deprecated(note = "use `get` or `get_type`")]
     pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>(&self) -> Singleton<T> {
         Singleton::inject(self).await
     }
@@ -400,26 +456,56 @@ impl ServiceContainerBuilder {
         }
     }
 
+    /// Create a new proxy container
+    ///
+    /// All resolving will be executed on this container before fallback to the
+    /// global container
     pub fn new_proxy() -> Self {
         Self {
             service_container: ServiceContainer::proxy(),
         }
     }
 
+    /// Registers an instance of a type
     pub async fn register<T: Clone + Send + Sync + 'static>(self, ext: T) -> Self {
         self.service_container.set_type(ext).await;
         self
     }
 
     /// Registers a closure that will be call each time
+    ///
     /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
-    ///
     pub async fn resolver<T: Clone + Send + Sync + 'static>(
         self,
         callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
     ) -> Self {
         self.service_container.resolver(callback).await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// This call will override existing resolver for this type
+    pub async fn resolvable<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.resolvable::<T>().await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// This call will override existing resolver for this type
+    /// The returned instance will be cache and use fro subsequent resolving
+    pub async fn resolvable_once<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.resolvable_once::<T>().await;
+        self
+    }
+
+    /// Registers type T as resolvable
+    ///
+    /// If a resolver already exist, this call will gracefully fail
+    pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>(self) -> Self {
+        self.service_container.soft_resolvable::<T>().await;
         self
     }
 
@@ -779,5 +865,18 @@ mod test {
 
         let counter: SoftCounter = container.get_type().await.unwrap();
         assert_eq!(counter.0, 100);
+    }
+
+    #[tokio::test]
+    async fn test_forgetting_resolver() {
+        let container = ServiceContainer::proxy();
+        container.resolver(|_| Box::pin(async { 100 })).await;
+
+        let number = container.get_type::<i32>().await;
+        assert_eq!(number.is_some(), true);
+
+        container.forget_resolver::<i32>().await;
+        let number2 = container.get_type::<i32>().await;
+        assert_eq!(number2.is_none(), true);
     }
 }

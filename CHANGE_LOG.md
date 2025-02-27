@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.1] - 2025-02-13
+## [0.5.2] - 2025-02-27
 
 ### Bug Fixes
 
-- Remove `Clone` trait when setting
+- [**breaking**] Start deprecating the injectable feature
+
+### Features
+
+- Make the set type resolvable
+- Add the ability to remove a resolver
+- Types can register the resolver
+
+### Examples
+
+- Update examples
 
 ## [0.5.0] - 2025-02-13
 

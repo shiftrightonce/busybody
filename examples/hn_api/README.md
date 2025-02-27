@@ -1,7 +1,8 @@
 # HN API
 
 ---
-An application that fetches hacker news top stories and has the ability to fetch a story. Further requests can be cached
+An application that fetches hacker news top stories and has the ability to fetch a story.
+Request can be cached.
 
 ## Endpoints
 

@@ -1,3 +1,5 @@
+use busybody::{Resolver, ServiceContainer};
+
 #[tokio::main]
 async fn main() {
     let container = busybody::ServiceContainerBuilder::new()
@@ -16,7 +18,8 @@ async fn main() {
             })
         })
         .await
-        .resolver(|_| Box::pin(async { Greeting(String::new()) })) // 4. Another resolver. This time for type Greeting
+        // 4. Another resolver. This time for type Greeting
+        .resolvable::<Greeting>()
         .await
         .build();
 
@@ -35,3 +38,10 @@ struct Id(i32);
 
 #[derive(Debug, Clone)]
 struct Greeting(String);
+
+#[async_trait::async_trait]
+impl Resolver for Greeting {
+    async fn resolve(_: &ServiceContainer) -> Self {
+        Self(String::new())
+    }
+}
