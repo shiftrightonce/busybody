@@ -184,7 +184,11 @@ impl ServiceContainer {
     }
 
     pub async fn forget_type<T: 'static>(&self) -> Option<Box<T>> {
-        self.container.forget::<T>().await
+        self.container.forget::<T>(self.make_reference()).await
+    }
+
+    pub async fn forget_resolver<T: 'static>(&self) -> bool {
+        self.container.remove_resolver::<T>().await
     }
 
     pub async fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
