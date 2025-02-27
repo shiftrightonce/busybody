@@ -11,6 +11,8 @@ async fn main() -> std::io::Result<()> {
         .await
         .build();
 
+    println!("listening on port: 8080");
+
     // 3. Setup actix web application
     HttpServer::new(move || {
         App::new()

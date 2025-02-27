@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use hacker_news_client::{HackerNewsClientTrait, Story};
 
-pub mod hacker_news_cache;
-pub mod hacker_news_client;
+use crate::{
+    hacker_news_cache::HackerNewsCacheClient,
+    hacker_news_client::{HackerNewsClient, HackerNewsClientTrait, Story},
+};
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -24,8 +25,8 @@ impl Default for Config {
 }
 
 #[busybody::async_trait]
-impl busybody::Injectable for Config {
-    async fn inject(container: &busybody::ServiceContainer) -> Self {
+impl busybody::Resolver for Config {
+    async fn resolve(container: &busybody::ServiceContainer) -> Self {
         if let Some(config) = container.get_type::<Self>().await {
             config
         } else {
@@ -57,17 +58,13 @@ impl HackerNewsClientTrait for HackerNewsClientProvider {
 }
 
 #[busybody::async_trait]
-impl busybody::Injectable for HackerNewsClientProvider {
-    async fn inject(_: &busybody::ServiceContainer) -> Self {
-        let config = busybody::helpers::provide::<Config>().await;
+impl busybody::Resolver for HackerNewsClientProvider {
+    async fn resolve(container: &busybody::ServiceContainer) -> Self {
+        let config = container.get_type::<Config>().await.unwrap();
         if config.enable_caching {
-            Self(Box::new(
-                busybody::helpers::provide::<hacker_news_cache::HackerNewsCacheClient>().await,
-            ))
+            Self::new(HackerNewsCacheClient::resolve(container).await)
         } else {
-            Self(Box::new(
-                busybody::helpers::provide::<hacker_news_client::HackerNewsClient>().await,
-            ))
+            Self::new(HackerNewsClient::resolve(container).await)
         }
     }
 }

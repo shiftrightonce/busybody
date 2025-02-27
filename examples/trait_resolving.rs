@@ -4,8 +4,11 @@ use busybody::Service;
 
 #[tokio::main]
 async fn main() {
+    // Register resolver
+    busybody::helpers::resolvable::<MyGreeterProvider>().await;
+
     //1.  By default MyGreeterProvider uses "MyGreeter" instance
-    let greeter: MyGreeterProvider = busybody::helpers::provide().await;
+    let greeter: MyGreeterProvider = busybody::helpers::get_type().await.unwrap();
     println!("my greeter greet: {}", greeter.greet());
 
     //2. An instance of MyGreeterProvider is created that uses a third party greeter
@@ -13,8 +16,8 @@ async fn main() {
         .set_type(MyGreeterProvider::new(ThirdPartyGreeter))
         .await;
 
-    //3. The following call to provide a "greeter provider" will use the third party greeter
-    let third_party_greeter: MyGreeterProvider = busybody::helpers::provide().await;
+    //3. The following call to get a "greeter provider" will use the third party greeter
+    let third_party_greeter: MyGreeterProvider = busybody::helpers::get_type().await.unwrap();
     println!("third party greeter greet: {}", third_party_greeter.greet());
 }
 
@@ -58,15 +61,9 @@ impl Deref for MyGreeterProvider {
 }
 
 #[busybody::async_trait]
-impl busybody::Injectable for MyGreeterProvider {
-    async fn inject(container: &busybody::ServiceContainer) -> Self {
-        // Get a registered instance or create and register a new one
-        match container.get_type::<Self>().await {
-            Some(exiting) => exiting,
-            None => {
-                let instance = Self(Service::new(Box::new(MyGreeter)));
-                container.set_type(instance).await.get_type().await.unwrap()
-            }
-        }
+impl busybody::Resolver for MyGreeterProvider {
+    async fn resolve(container: &busybody::ServiceContainer) -> Self {
+        let instance = Self(Service::new(Box::new(MyGreeter)));
+        container.set_type(instance).await.get_type().await.unwrap()
     }
 }

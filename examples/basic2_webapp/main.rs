@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use busybody::ServiceContainer;
 use chrono::prelude::*;
@@ -5,7 +7,11 @@ use rand::{self, Rng};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // 1. Setup actix web application (Note: we didn't setup a service container but we could if we wanted...)
+    // 1. Wrapping our shared resources in Arc
+    //    Both of them implements Resolver
+    busybody::helpers::resolvable_once::<Arc<ServerUptime>>().await;
+    busybody::helpers::resolvable_once::<Arc<HandlerExecutionTime>>().await;
+
     HttpServer::new(|| {
         App::new()
             .route("/", web::get().to(uptime))
@@ -38,10 +44,10 @@ impl ServerUptime {
     }
 }
 
-// 2. Implement "injectable" for ServerUptime
+// 2. Implement "Resolver" for ServerUptime
 #[busybody::async_trait]
-impl busybody::Injectable for ServerUptime {
-    async fn inject(_: &ServiceContainer) -> Self {
+impl busybody::Resolver for ServerUptime {
+    async fn resolve(_: &ServiceContainer) -> Self {
         Self::new() // each time return a new instance
     }
 }
@@ -55,11 +61,11 @@ struct HandlerExecutionTime {
 
 // 3. Implement "injectable" for HandlerExecutionTime
 #[busybody::async_trait]
-impl busybody::Injectable for HandlerExecutionTime {
-    async fn inject(_: &ServiceContainer) -> Self {
+impl busybody::Resolver for HandlerExecutionTime {
+    async fn resolve(container: &ServiceContainer) -> Self {
         // 4. Ask for a singleton instance of ServerUptime to be returned.
         //    If none exist, a new one will be created and returned
-        let server_timer = busybody::helpers::singleton::<ServerUptime>().await;
+        let server_timer = container.get::<ServerUptime>().await.unwrap();
         Self {
             started: Utc::now(),
             server_duration: server_timer.duration(),
@@ -83,7 +89,15 @@ impl HandlerExecutionTime {
 
 async fn uptime() -> impl Responder {
     // 5. Ask for an instance of HandlerExecutionTime to be created and provided
-    let timer = busybody::helpers::provide::<HandlerExecutionTime>().await;
+    println!(
+        "has handler exec: {}",
+        busybody::helpers::get_service::<HandlerExecutionTime>()
+            .await
+            .is_some()
+    );
+    let timer = busybody::helpers::get_service::<HandlerExecutionTime>()
+        .await
+        .unwrap();
     let mut rang = rand::rng();
 
     for _ in 0..rang.random_range(1..20000000) {
@@ -96,7 +110,9 @@ async fn uptime() -> impl Responder {
 }
 async fn uptime2() -> impl Responder {
     // 5. Ask for an instance of HandlerExecutionTime to be created and provided
-    let timer = busybody::helpers::provide::<HandlerExecutionTime>().await;
+    let timer = busybody::helpers::get_type::<Arc<HandlerExecutionTime>>()
+        .await
+        .unwrap();
     let mut rang = rand::rng();
 
     for _ in 0..rang.random_range(1..40000000) {
