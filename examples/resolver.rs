@@ -1,4 +1,4 @@
-use busybody::{helpers, Resolver, ServiceContainer};
+use busybody::{Resolver, ServiceContainer};
 
 #[tokio::main]
 async fn main() {
