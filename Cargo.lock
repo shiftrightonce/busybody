@@ -394,7 +394,7 @@ checksum = "1628fb46dfa0b37568d12e5edd512553eccf6a22a78e8bde00bb4aed84d5bdbf"
 
 [[package]]
 name = "busybody"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "actix-web",
  "async-trait",
