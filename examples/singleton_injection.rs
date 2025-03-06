@@ -1,6 +1,6 @@
 use busybody::{
+    Resolver, ServiceContainer, ServiceContainerBuilder,
     helpers::{self},
-    Injectable, ServiceContainer, ServiceContainerBuilder, Singleton,
 };
 use rand::Rng;
 
@@ -13,11 +13,13 @@ async fn main() {
             api_token: "super_secret_token".into(),
         })
         .await
+        .resolvable_once::<DailyInvoicesFetcher>()
+        .await
         .build();
 
     // Point 3. Auto instantiate an instance of `DailyInvoicesFetcher`
     //          We are able to `build` an instance because `DailyInvoicesFetcher` implements `Injectable`
-    let invoice_fetcher = helpers::singleton::<DailyInvoicesFetcher>().await;
+    let invoice_fetcher = helpers::get_type::<DailyInvoicesFetcher>().await.unwrap();
     println!(
         "client id: {}. invoices fetched: {:#?}",
         invoice_fetcher.id,
@@ -25,7 +27,7 @@ async fn main() {
     );
 
     // Point 4. Subsequent calls to `singleton` returns the same instance
-    let invoice_fetcher = helpers::singleton::<DailyInvoicesFetcher>().await;
+    let invoice_fetcher = helpers::get_type::<DailyInvoicesFetcher>().await.unwrap();
     println!(
         "client id: {}. invoices fetched: {:#?}",
         invoice_fetcher.id,
@@ -34,7 +36,7 @@ async fn main() {
 
     // Point 5: Using `inject_all` you can inject multiple injectable(s)
     let (fetcher, singleton_fetcher) =
-        helpers::inject_all::<(DailyInvoicesFetcher, Singleton<DailyInvoicesFetcher>)>().await; // inject one or more injectable
+        helpers::resolve_all::<(DailyInvoicesFetcher, DailyInvoicesFetcher)>().await; // inject one or more injectable
 
     println!(
         "new client id: {}. invoices fetched: {:#?}",
@@ -49,7 +51,7 @@ async fn main() {
     );
 
     // inject a singleton
-    helpers::inject_and_call(|fetcher: Singleton<DailyInvoicesFetcher>| async move {
+    helpers::resolve_and_call(|fetcher: DailyInvoicesFetcher| async move {
         use_fetcher(&fetcher).await;
     })
     .await;
@@ -60,7 +62,7 @@ struct AppConfig {
     pub api_token: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DailyInvoicesFetcher {
     api_token: String,
     id: u32,
@@ -83,8 +85,8 @@ impl DailyInvoicesFetcher {
 }
 
 #[busybody::async_trait]
-impl Injectable for DailyInvoicesFetcher {
-    async fn inject(container: &ServiceContainer) -> Self {
+impl Resolver for DailyInvoicesFetcher {
+    async fn resolve(container: &ServiceContainer) -> Self {
         // let mut rng = rand::rng(); // for random numbers generation
         let api_token = container
             .get::<AppConfig>()
