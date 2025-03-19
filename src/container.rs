@@ -250,7 +250,7 @@ impl ServiceContainer {
         }
 
         if self.is_proxy() {
-            return Box::pin(async { service_container().get_type().await }).await;
+            return Box::pin(service_container().get_type()).await;
         }
 
         None
