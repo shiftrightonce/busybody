@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2025-03-19
+
+### Bug Fixes
+
+- Pin the async correctly
+
+### Miscellaneous Tasks
+
+- Bump ring from 0.17.11 to 0.17.13
+
+### Example
+
+- Remove deprecated code
+
 ## [0.5.3] - 2025-02-27
 
 ### Bug Fixes
@@ -12,7 +26,6 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-- Remove `Clone` trait when setting
 - [**breaking**] Start deprecating the injectable feature
 
 ### Features
@@ -24,6 +37,12 @@ All notable changes to this project will be documented in this file.
 ### Examples
 
 - Update examples
+
+## [0.5.1] - 2025-02-13
+
+### Bug Fixes
+
+- Remove `Clone` trait when setting
 
 ## [0.5.0] - 2025-02-13
 
