@@ -144,7 +144,7 @@
 //! async fn main() {
 //!     busybody::helpers::resolvable::<Config>().await;
 //!     busybody::helpers::service_container()
-//!         .resolvable::<Config>()
+//!         .resolvable::<Config>() // same as above
 //!         .await
 //!         .set_type(44_i64)
 //!         .await
