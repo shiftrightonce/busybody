@@ -4,7 +4,7 @@ use futures::future::BoxFuture;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    helpers::service_container, service::Service, Handler, Injectable, Resolver, Singleton,
+    Handler, Injectable, Resolver, Singleton, helpers::service_container, service::Service,
 };
 use std::{
     any::{Any, TypeId},
@@ -98,10 +98,10 @@ impl Container {
     pub(crate) async fn resolver<T: Clone + Send + Sync + 'static>(
         &self,
         mut callback: impl FnMut(ServiceContainer) -> BoxFuture<'static, T>
-            + Send
-            + Sync
-            + Clone
-            + 'static,
+        + Send
+        + Sync
+        + Clone
+        + 'static,
     ) -> &Self {
         let mut lock = self.resolvers.write().await;
         lock.insert(
