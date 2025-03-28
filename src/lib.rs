@@ -60,8 +60,8 @@
 //!     // Instantiate the http client once
 //!     helpers::resolvable_once::<Arc<HttpClient>>().await; // HttpClient implements Resolver
 //!
-//!     // helpers::resolvable::<Arc<HttpClient>>().await; // Resolves the instance each one is required
-//!     // helpers::soft_resolvable::<Arc<HttpClient>>().await; // Register a resolver is one does not exist
+//!     // helpers::resolvable::<Arc<HttpClient>>().await; // Resolves the instance each time one is required
+//!     // helpers::soft_resolvable::<Arc<HttpClient>>().await; // Register a resolver if one does not exist
 //!
 //!     // Whenever an instance of Config is needed
 //!     // this closure will be called
