@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2025-05-13
+
+### Bug Fixes
+
+- Wrong grammar
+- Remove deprecated code
+
+### Miscellaneous Tasks
+
+- Bump tokio from 1.43.0 to 1.43.1
+- Bump openssl from 0.10.71 to 0.10.72
+
 ## [0.5.5] - 2025-03-19
 
 ### Bug Fixes
