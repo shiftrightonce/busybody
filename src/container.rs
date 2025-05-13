@@ -3,17 +3,18 @@
 use futures::future::BoxFuture;
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{
-    Handler, Injectable, Resolver, Singleton, helpers::service_container, service::Service,
-};
+use crate::{Handler, Resolver, helpers::service_container, service::Service};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
 
-pub(crate) static SERVICE_CONTAINER: OnceLock<Arc<ServiceContainer>> = OnceLock::new();
+pub(crate) static SERVICE_CONTAINER: OnceLock<ServiceContainer> = OnceLock::new();
 pub(crate) const GLOBAL_INSTANCE_ID: &str = "_global_ci";
+pub(crate) static TASK_SERVICE_CONTAINER: OnceLock<
+    std::sync::RwLock<HashMap<String, ServiceContainer>>,
+> = OnceLock::new();
 
 type ResolverCollection = HashMap<
     TypeId,
@@ -134,6 +135,7 @@ impl Container {
 #[derive(Clone)]
 pub struct ServiceContainer {
     in_proxy_mode: bool,
+    is_task_context: bool,
     is_reference: bool,
     container: Container,
     id: Arc<String>,
@@ -148,9 +150,13 @@ impl Default for ServiceContainer {
 impl ServiceContainer {
     pub(crate) fn new() -> Self {
         let id = GLOBAL_INSTANCE_ID.to_string();
+
+        _ = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
+
         Self {
             id: Arc::new(id),
             in_proxy_mode: false,
+            is_task_context: false,
             is_reference: false,
             container: Default::default(),
         }
@@ -161,6 +167,7 @@ impl ServiceContainer {
             is_reference: true,
             id: self.id.clone(),
             in_proxy_mode: self.in_proxy_mode,
+            is_task_context: self.is_task_context,
             container: self.container.clone(),
         }
     }
@@ -174,10 +181,40 @@ impl ServiceContainer {
     /// a specific scope
     pub fn proxy() -> Self {
         let id = ulid::Ulid::new().to_string().to_lowercase();
+        let mut ci = Self::default();
+        ci.id = Arc::new(id);
+        ci.in_proxy_mode = true;
+
+        ci
+    }
+
+    pub fn make_task_proxy() -> Self {
+        if let Some(id) = tokio::task::try_id() {
+            let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
+            if let Ok(r_lock) = rw_lock.read() {
+                if let Some(ci) = r_lock.get(&id.to_string()).cloned() {
+                    drop(r_lock);
+                    return ci;
+                }
+            }
+        }
+        let id = ulid::Ulid::new().to_string().to_lowercase();
 
         let mut ci = Self::default();
         ci.id = Arc::new(id);
         ci.in_proxy_mode = true;
+        ci.is_task_context = true;
+
+        if let Some(id) = tokio::task::try_id() {
+            ci.id = Arc::new(id.to_string());
+            if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
+                if let Ok(mut w_lock) = rw_lock.write() {
+                    w_lock.insert(ci.id.as_str().to_string(), ci.clone());
+                    drop(w_lock);
+                }
+            }
+        }
+
         ci
     }
 
@@ -212,34 +249,6 @@ impl ServiceContainer {
 
     pub async fn forget<T: 'static>(&self) -> Option<Box<Service<T>>> {
         self.forget_type().await
-    }
-
-    /// Tries to find the instance of the type wrapped in `Service<T>`
-    /// if an instance does not exist, one will be injected
-    #[deprecated(note = "use `get`")]
-    pub async fn get_or_inject<T: Injectable + Send + Sync + 'static>(&self) -> Service<T> {
-        let result = self.get::<T>().await;
-
-        if result.is_none() {
-            let instance = T::inject(self).await;
-            return self.set(instance).await.get::<T>().await.unwrap();
-        }
-
-        result.unwrap()
-    }
-
-    /// Tries to find the instance of the type T
-    /// if an instance does not exist, one will be injected
-    #[deprecated(note = "use `get_type`")]
-    pub async fn get_type_or_inject<T: Injectable + Clone + Send + Sync + 'static>(&self) -> T {
-        let result = self.get_type::<T>().await;
-        if result.is_none() {
-            let instance = T::inject(self).await;
-            self.set_type(instance.clone()).await;
-            return instance;
-        }
-
-        result.unwrap()
     }
 
     /// Tries to find the "raw" instance of the type
@@ -364,21 +373,6 @@ impl ServiceContainer {
         self
     }
 
-    /// Takes an async function or closure and executes it
-    /// Require arguments are injected during the call. All arguments must implement
-    /// Injectable.
-    ///
-    /// This method does not check for existing instance
-    #[deprecated(note = "use `resolve_and_call`")]
-    pub async fn inject_and_call<F, Args>(&self, mut handler: F) -> F::Output
-    where
-        F: Handler<Args>,
-        Args: Injectable + 'static,
-    {
-        let args = Args::inject(self).await;
-        handler.call(args).await
-    }
-
     /// Takes an async function or closure and execute it
     /// Require arguments are resolve either by a resolver or sourced from the service container
     ///
@@ -386,9 +380,9 @@ impl ServiceContainer {
     pub async fn resolve_and_call<F, Args>(&self, mut handler: F) -> F::Output
     where
         F: Handler<Args>,
-        Args: Resolver,
+        Args: Clone + Resolver + 'static,
     {
-        let args = Args::resolve(self).await;
+        let args = self.resolve_all().await;
         handler.call(args).await
     }
 
@@ -397,49 +391,27 @@ impl ServiceContainer {
     ///
     pub async fn resolve_all<Args>(&self) -> Args
     where
-        Args: Resolver,
+        Args: Clone + Resolver + 'static,
     {
+        if let Some(a) = self.get_type::<Args>().await {
+            return a;
+        }
+
         Args::resolve(self).await
     }
+}
 
-    /// Given a tuple of types, this method will try to resolve them
-    /// and return a tuple of instances
-    /// The types must implement Injectable.
-    ///
-    /// This method does not check for existing instance of the types.
-    #[deprecated(note = "use `resolve_all`")]
-    pub async fn inject_all<Args>(&self) -> Args
-    where
-        Args: Injectable + 'static,
-    {
-        Args::inject(self).await
-    }
-
-    /// Given a type, this method will try to call the `inject` method
-    /// implemented on the type. It does not check the container for existing
-    /// instance.
-    #[deprecated(note = "use `get`  or `get_type`")]
-    pub async fn provide<T: Injectable + 'static>(&self) -> T {
-        T::inject(self).await
-    }
-
-    /// Given a type, this method will try to find an instance of the type
-    /// wrapped in a `Service<T>` that is currently registered in the service
-    /// container.
-    #[deprecated(note = "use `get`")]
-    pub async fn service<T: Send + Sync + 'static>(&self) -> Service<T> {
-        Service::inject(self).await
-    }
-
-    /// Given a type, this method will try to find an existing instance of the
-    /// type. If that fails, an instance of the type is
-    /// initialized, wrapped in a `Service`, stored and
-    /// a copy is returned. Subsequent calls requesting instance of that type will
-    /// returned the stored copy. If this is a proxy container, the instance will be dropped when
-    /// this container goes out of scope.
-    #[deprecated(note = "use `get` or `get_type`")]
-    pub async fn singleton<T: Injectable + Sized + Send + Sync + 'static>(&self) -> Singleton<T> {
-        Singleton::inject(self).await
+impl Drop for ServiceContainer {
+    fn drop(&mut self) {
+        let count = Arc::strong_count(&self.id);
+        if self.in_proxy_mode && count == 2 {
+            if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
+                if let Ok(mut w_lock) = rw_lock.write() {
+                    let _in = w_lock.remove(self.id.as_str());
+                    drop(w_lock);
+                }
+            }
+        }
     }
 }
 
@@ -567,13 +539,13 @@ impl ServiceContainerBuilder {
     }
 
     /// Instantiate and returns the service container
-    pub fn build(self) -> Arc<ServiceContainer> {
+    pub fn build(self) -> ServiceContainer {
         if self.service_container.id.as_str() == GLOBAL_INSTANCE_ID {
             SERVICE_CONTAINER
-                .get_or_init(|| Arc::new(self.service_container))
+                .get_or_init(|| self.service_container)
                 .clone()
         } else {
-            Arc::new(self.service_container)
+            self.service_container
         }
     }
 }
@@ -592,17 +564,10 @@ mod test {
     }
 
     #[async_trait]
-    impl Injectable for Counter {
-        async fn inject(container: &ServiceContainer) -> Self {
-            let mut result = container.get_type().await;
-            if result.is_none() {
-                result = container
-                    .set_type(Counter { start_point: 44 })
-                    .await
-                    .get_type()
-                    .await;
-            }
-            result.unwrap()
+    impl Resolver for Counter {
+        async fn resolve(container: &ServiceContainer) -> Self {
+            container.set_type(Counter { start_point: 44 }).await;
+            container.get_type().await.unwrap()
         }
     }
 
@@ -612,8 +577,8 @@ mod test {
     }
 
     #[async_trait]
-    impl Injectable for User {
-        async fn inject(_: &ServiceContainer) -> Self {
+    impl Resolver for User {
+        async fn resolve(_: &ServiceContainer) -> Self {
             Self { id: 1000 }
         }
     }
@@ -682,7 +647,7 @@ mod test {
     #[tokio::test]
     async fn test_injecting() {
         let container = ServiceContainer::proxy();
-        let counter = container.inject_all::<Counter>().await;
+        let counter = container.resolve_all::<Counter>().await;
 
         assert_eq!(counter.start_point, 44usize);
     }
@@ -692,28 +657,18 @@ mod test {
         let container = ServiceContainer::proxy();
         container.set_type(Counter { start_point: 6000 }).await;
 
-        let counter = container.inject_all::<Counter>().await;
+        let counter = container.resolve_all::<Counter>().await;
         assert_eq!(counter.start_point, 6000usize);
-    }
-
-    #[tokio::test]
-    async fn test_singleton() {
-        let container = ServiceContainer::proxy();
-
-        let user = container.singleton::<User>().await;
-        assert_eq!(user.id, 1000);
-
-        container.set_type(User { id: 88 }).await;
-        let user = container.singleton::<User>().await;
-        assert_eq!(user.id, 1000);
     }
 
     #[tokio::test]
     async fn test_inject_and_call() {
         let container = ServiceContainer::proxy();
+        container.resolvable::<User>().await;
+        container.resolvable::<Counter>().await;
 
         let result = container
-            .inject_and_call(|user: User, counter: Counter| async move {
+            .resolve_and_call(|user: User, counter: Counter| async move {
                 assert_eq!(user.id, 1000);
                 assert_eq!(counter.start_point, 44);
                 (1, 2, 3)
@@ -726,9 +681,20 @@ mod test {
     #[tokio::test]
     async fn test_get_or_inject_raw_type() {
         let container = ServiceContainer::proxy();
+
         assert_eq!(container.get_type::<User>().await.is_none(), true);
 
-        let a_user = container.get_type_or_inject::<User>().await;
+        container
+            .resolver(|c| {
+                //
+                Box::pin(async move { User::resolve(&c).await })
+            })
+            .await;
+
+        let a_user = container
+            .get_type::<User>()
+            .await
+            .expect("instance of User was expected");
         let a_user2 = container.get_type::<User>().await;
 
         assert_eq!(a_user.id, 1000);
@@ -742,8 +708,10 @@ mod test {
 
         assert_eq!(container.get::<User>().await.is_none(), true);
 
-        let a_user = container.get_or_inject::<User>().await;
-        let a_user2 = container.get::<User>().await;
+        container.resolvable_once::<User>().await;
+
+        let a_user = container.resolve_all::<User>().await;
+        let a_user2 = container.get_type::<User>().await;
 
         assert_eq!(a_user.id, 1000);
         assert_eq!(a_user2.is_some(), true);

@@ -1,22 +1,10 @@
 #![allow(dead_code)]
 
-use crate::{container::ServiceContainer, injectable::Injectable, Resolver};
+use crate::{Resolver, container::ServiceContainer};
 use async_trait::async_trait;
 use std::sync::Arc;
 
 pub type Service<T> = Arc<T>;
-
-#[async_trait]
-impl<T: Send + Sync + 'static> Injectable for Service<T> {
-    async fn inject(container: &ServiceContainer) -> Self {
-        match container.get::<T>().await {
-            Some(service) => service,
-            None => {
-                panic!("Could not find service: {:?}", std::any::type_name::<T>())
-            }
-        }
-    }
-}
 
 #[async_trait]
 impl<T: Send + Sync + 'static> Resolver for Service<T>
