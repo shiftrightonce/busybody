@@ -189,15 +189,10 @@ impl ServiceContainer {
     }
 
     pub fn make_task_proxy() -> Self {
-        if let Some(id) = tokio::task::try_id() {
-            let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
-            if let Ok(r_lock) = rw_lock.read() {
-                if let Some(ci) = r_lock.get(&id.to_string()).cloned() {
-                    drop(r_lock);
-                    return ci;
-                }
-            }
+        if let Some(ci) = Self::get_task_instance() {
+            return ci;
         }
+
         let id = ulid::Ulid::new().to_string().to_lowercase();
 
         let mut ci = Self::default();
@@ -221,6 +216,11 @@ impl ServiceContainer {
     /// Returns the proxy state of the current container
     pub fn is_proxy(&self) -> bool {
         self.in_proxy_mode
+    }
+
+    /// Returns the task proxy state of the current container
+    pub fn is_task_proxy(&self) -> bool {
+        self.is_task_context
     }
 
     /// Checks if the current container is in proxy mode.
@@ -258,6 +258,12 @@ impl ServiceContainer {
             return value;
         }
 
+        if !self.is_task_proxy() {
+            if let Some(ci) = Self::get_task_instance() {
+                return Box::pin(ci.get_type()).await;
+            }
+        }
+
         if self.is_proxy() {
             return Box::pin(service_container().get_type()).await;
         }
@@ -282,6 +288,17 @@ impl ServiceContainer {
     pub(crate) async fn remember<T: Clone + Send + Sync + 'static>(&self, value: T) -> &Self {
         self.container.set(value).await;
         self
+    }
+
+    pub(crate) fn get_task_instance() -> Option<ServiceContainer> {
+        if let Some(id) = tokio::task::try_id() {
+            let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
+            if let Ok(r_lock) = rw_lock.read() {
+                return r_lock.get(&id.to_string()).cloned();
+            }
+        }
+
+        None
     }
 
     /// Stores the instance as `Service<T>`
