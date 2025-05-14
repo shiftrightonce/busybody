@@ -258,7 +258,7 @@ impl ServiceContainer {
             return value;
         }
 
-        if !self.is_task_proxy() {
+        if !self.is_task_proxy() && self.id.as_str() != GLOBAL_INSTANCE_ID {
             if let Some(ci) = Self::get_task_instance() {
                 return Box::pin(ci.get_type()).await;
             }
