@@ -380,12 +380,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1628fb46dfa0b37568d12e5edd512553eccf6a22a78e8bde00bb4aed84d5bdbf"
 
 [[package]]
-name = "busybody"
-<<<<<<< HEAD
-version = "1.0.2"
-=======
 version = "1.0.3"
->>>>>>> dev
 dependencies = [
  "actix-web",
  "async-trait",
