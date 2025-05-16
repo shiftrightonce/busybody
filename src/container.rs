@@ -193,20 +193,21 @@ impl ServiceContainer {
             return ci;
         }
 
-        let id = ulid::Ulid::new().to_string().to_lowercase();
+        let id = if let Some(id) = tokio::task::try_id() {
+            id.to_string()
+        } else {
+            "1".to_string()
+        };
 
         let mut ci = Self::default();
-        ci.id = Arc::new(id);
+        ci.id = Arc::new(id.clone());
         ci.in_proxy_mode = true;
         ci.is_task_context = true;
 
-        if let Some(id) = tokio::task::try_id() {
-            ci.id = Arc::new(id.to_string());
-            if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
-                if let Ok(mut w_lock) = rw_lock.write() {
-                    w_lock.insert(ci.id.as_str().to_string(), ci.clone());
-                    drop(w_lock);
-                }
+        if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
+            if let Ok(mut w_lock) = rw_lock.write() {
+                w_lock.insert(id, ci.clone());
+                drop(w_lock);
             }
         }
 
@@ -258,7 +259,7 @@ impl ServiceContainer {
             return value;
         }
 
-        if !self.is_task_proxy() && self.id.as_str() != GLOBAL_INSTANCE_ID {
+        if !self.is_task_proxy() && self.is_proxy() {
             if let Some(ci) = Self::get_task_instance() {
                 return Box::pin(ci.get_type()).await;
             }
@@ -291,11 +292,15 @@ impl ServiceContainer {
     }
 
     pub(crate) fn get_task_instance() -> Option<ServiceContainer> {
-        if let Some(id) = tokio::task::try_id() {
-            let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
-            if let Ok(r_lock) = rw_lock.read() {
-                return r_lock.get(&id.to_string()).cloned();
-            }
+        let id = if let Some(id) = tokio::task::try_id() {
+            id.to_string()
+        } else {
+            "1".to_string()
+        };
+
+        let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
+        if let Ok(r_lock) = rw_lock.read() {
+            return r_lock.get(&id.to_string()).cloned();
         }
 
         None
@@ -421,7 +426,7 @@ impl ServiceContainer {
 impl Drop for ServiceContainer {
     fn drop(&mut self) {
         let count = Arc::strong_count(&self.id);
-        if self.in_proxy_mode && count == 2 {
+        if self.is_task_context && count == 2 {
             if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
                 if let Ok(mut w_lock) = rw_lock.write() {
                     let _in = w_lock.remove(self.id.as_str());
