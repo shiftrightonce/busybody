@@ -135,7 +135,6 @@ impl Container {
 #[derive(Clone)]
 pub struct ServiceContainer {
     in_proxy_mode: bool,
-    is_task_context: bool,
     is_reference: bool,
     container: Container,
     id: Arc<String>,
@@ -156,7 +155,6 @@ impl ServiceContainer {
         Self {
             id: Arc::new(id),
             in_proxy_mode: false,
-            is_task_context: false,
             is_reference: false,
             container: Default::default(),
         }
@@ -167,7 +165,6 @@ impl ServiceContainer {
             is_reference: true,
             id: self.id.clone(),
             in_proxy_mode: self.in_proxy_mode,
-            is_task_context: self.is_task_context,
             container: self.container.clone(),
         }
     }
@@ -188,40 +185,9 @@ impl ServiceContainer {
         ci
     }
 
-    pub fn make_task_proxy() -> Self {
-        if let Some(ci) = Self::get_task_instance() {
-            return ci;
-        }
-
-        let id = if let Some(id) = tokio::task::try_id() {
-            id.to_string()
-        } else {
-            "1".to_string()
-        };
-
-        let mut ci = Self::default();
-        ci.id = Arc::new(id.clone());
-        ci.in_proxy_mode = true;
-        ci.is_task_context = true;
-
-        if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
-            if let Ok(mut w_lock) = rw_lock.write() {
-                w_lock.insert(id, ci.clone());
-                drop(w_lock);
-            }
-        }
-
-        ci
-    }
-
     /// Returns the proxy state of the current container
     pub fn is_proxy(&self) -> bool {
         self.in_proxy_mode
-    }
-
-    /// Returns the task proxy state of the current container
-    pub fn is_task_proxy(&self) -> bool {
-        self.is_task_context
     }
 
     /// Checks if the current container is in proxy mode.
@@ -257,12 +223,6 @@ impl ServiceContainer {
         let value = self.container.get::<T>(self.make_reference()).await;
         if value.is_some() {
             return value;
-        }
-
-        if !self.is_task_proxy() && self.is_proxy() {
-            if let Some(ci) = Self::get_task_instance() {
-                return Box::pin(ci.get_type()).await;
-            }
         }
 
         if self.is_proxy() {
@@ -420,20 +380,6 @@ impl ServiceContainer {
         }
 
         Args::resolve(self).await
-    }
-}
-
-impl Drop for ServiceContainer {
-    fn drop(&mut self) {
-        let count = Arc::strong_count(&self.id);
-        if self.is_task_context && count == 2 {
-            if let Some(rw_lock) = TASK_SERVICE_CONTAINER.get() {
-                if let Ok(mut w_lock) = rw_lock.write() {
-                    let _in = w_lock.remove(self.id.as_str());
-                    drop(w_lock);
-                }
-            }
-        }
     }
 }
 

@@ -218,9 +218,3 @@ pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
 pub fn make_proxy() -> ServiceContainer {
     ServiceContainer::proxy()
 }
-
-/// Returns a new proxy service container
-/// The container is tie/link to the current process
-pub fn make_task_proxy() -> ServiceContainer {
-    ServiceContainer::make_task_proxy()
-}
