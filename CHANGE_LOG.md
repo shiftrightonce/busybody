@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2025-05-16
+
+### Bug Fixes
+
+- Make sure the current container is a proxy
+
 ## [1.0.2] - 2025-05-14
 
 ### Bug Fixes
