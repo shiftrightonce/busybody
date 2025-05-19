@@ -23,7 +23,7 @@ where
     async fn resolve(c: &ServiceContainer) -> Self {
         (c.get_type::<A>()
             .await
-            .expect(&format!("could not resolve: {}", type_name::<A>())),)
+            .unwrap_or_else(|| panic!("could not resolve: {}", type_name::<A>())),)
     }
 }
 

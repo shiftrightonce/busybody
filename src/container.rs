@@ -7,13 +7,13 @@ use crate::{Handler, Resolver, helpers::service_container, service::Service};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    sync::{Arc, OnceLock},
+    sync::{Arc, OnceLock, atomic::AtomicUsize},
 };
 
 pub(crate) static SERVICE_CONTAINER: OnceLock<ServiceContainer> = OnceLock::new();
 pub(crate) const GLOBAL_INSTANCE_ID: &str = "_global_ci";
 pub(crate) static TASK_SERVICE_CONTAINER: OnceLock<
-    std::sync::RwLock<HashMap<String, ServiceContainer>>,
+    std::sync::Mutex<HashMap<String, (AtomicUsize, Container)>>,
 > = OnceLock::new();
 
 type ResolverCollection = HashMap<
@@ -135,6 +135,7 @@ impl Container {
 #[derive(Clone)]
 pub struct ServiceContainer {
     in_proxy_mode: bool,
+    is_task_mode: bool,
     is_reference: bool,
     container: Container,
     id: Arc<String>,
@@ -150,11 +151,12 @@ impl ServiceContainer {
     pub(crate) fn new() -> Self {
         let id = GLOBAL_INSTANCE_ID.to_string();
 
-        _ = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
+        _ = TASK_SERVICE_CONTAINER.get_or_init(std::sync::Mutex::default);
 
         Self {
             id: Arc::new(id),
             in_proxy_mode: false,
+            is_task_mode: false,
             is_reference: false,
             container: Default::default(),
         }
@@ -165,6 +167,7 @@ impl ServiceContainer {
             is_reference: true,
             id: self.id.clone(),
             in_proxy_mode: self.in_proxy_mode,
+            is_task_mode: self.is_task_mode,
             container: self.container.clone(),
         }
     }
@@ -183,6 +186,41 @@ impl ServiceContainer {
         ci.in_proxy_mode = true;
 
         ci
+    }
+
+    /// Returns a new proxy service container that is tie to the current task
+    ///
+    /// If this method is called outside of a task context, an error will be return
+    pub fn make_task_proxy() -> Result<Self, String> {
+        if let Some(ci) = Self::get_task_instance() {
+            return Ok(ci);
+        }
+
+        let id = if let Some(id) = tokio::task::try_id() {
+            id.to_string()
+        } else {
+            return Err("Task proxy requires a async task process".to_string());
+        };
+
+        let mut ci = Self::default();
+        ci.id = Arc::new(id.clone());
+        ci.in_proxy_mode = true;
+        ci.is_task_mode = true;
+
+        if let Some(mutex) = TASK_SERVICE_CONTAINER.get() {
+            if let Ok(mut lock) = mutex.lock() {
+                let counter = AtomicUsize::new(1);
+                lock.insert(id, (counter, ci.container.clone()));
+                drop(lock);
+            }
+        }
+
+        Ok(ci)
+    }
+
+    /// Returns the task proxy state of the current container
+    pub fn is_task_proxy(&self) -> bool {
+        self.is_task_mode
     }
 
     /// Returns the proxy state of the current container
@@ -225,6 +263,15 @@ impl ServiceContainer {
             return value;
         }
 
+        if !self.is_task_proxy() && self.is_proxy() {
+            if let Some(sc) = Self::get_task_instance() {
+                let result = Box::pin(sc.get_type()).await;
+                if result.is_some() {
+                    return result;
+                }
+            }
+        }
+
         if self.is_proxy() {
             return Box::pin(service_container().get_type()).await;
         }
@@ -255,12 +302,19 @@ impl ServiceContainer {
         let id = if let Some(id) = tokio::task::try_id() {
             id.to_string()
         } else {
-            "1".to_string()
+            return None;
         };
 
-        let rw_lock = TASK_SERVICE_CONTAINER.get_or_init(|| std::sync::RwLock::default());
-        if let Ok(r_lock) = rw_lock.read() {
-            return r_lock.get(&id.to_string()).cloned();
+        let mutex = TASK_SERVICE_CONTAINER.get_or_init(std::sync::Mutex::default);
+        if let Ok(mut lock) = mutex.lock() {
+            if let Some((counter, c)) = lock.get_mut(&id) {
+                counter.fetch_add(1, std::sync::atomic::Ordering::Acquire);
+                let mut instance = Self::proxy();
+                instance.id = Arc::new(id);
+                instance.container = c.clone();
+                instance.is_task_mode = true;
+                return Some(instance);
+            }
         }
 
         None
@@ -380,6 +434,23 @@ impl ServiceContainer {
         }
 
         Args::resolve(self).await
+    }
+}
+
+impl Drop for ServiceContainer {
+    fn drop(&mut self) {
+        if self.is_task_proxy() {
+            if let Some(mutex) = TASK_SERVICE_CONTAINER.get() {
+                if let Ok(mut lock) = mutex.lock() {
+                    if let Some((counter, sc)) = lock.remove(self.id.as_str()) {
+                        if counter.fetch_sub(1, std::sync::atomic::Ordering::Acquire) > 0 {
+                            lock.insert(self.id.to_string(), (counter, sc));
+                        }
+                    }
+                    drop(lock);
+                }
+            }
+        }
     }
 }
 

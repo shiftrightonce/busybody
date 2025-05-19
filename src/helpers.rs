@@ -218,3 +218,17 @@ pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
 pub fn make_proxy() -> ServiceContainer {
     ServiceContainer::proxy()
 }
+
+/// Returns a new proxy service container that is tie to the current task
+///
+/// If this function is called outside of a task context, an error will be return
+pub fn make_task_proxy() -> Result<ServiceContainer, String> {
+    ServiceContainer::make_task_proxy()
+}
+
+/// Returns a new proxy service container that is tie to the current task
+///
+/// If this function is called outside of a task context, a normal proxy instance will be returned.
+pub fn make_task_proxy_or_fallback() -> ServiceContainer {
+    ServiceContainer::make_task_proxy().unwrap_or_else(|_| make_proxy())
+}
