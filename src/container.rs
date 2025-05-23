@@ -7,6 +7,7 @@ use crate::{Handler, Resolver, helpers::service_container, service::Service};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    fmt::{Debug, Display},
     sync::{Arc, OnceLock, atomic::AtomicUsize},
 };
 
@@ -139,6 +140,24 @@ pub struct ServiceContainer {
     is_reference: bool,
     container: Container,
     id: Arc<String>,
+}
+
+impl Debug for ServiceContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self, f)
+    }
+}
+
+impl Display for ServiceContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "service container:: id: {}, proxy_mode: {}, task mode: {}",
+            self.id,
+            self.is_proxy(),
+            self.is_task_proxy()
+        )
+    }
 }
 
 impl Default for ServiceContainer {
