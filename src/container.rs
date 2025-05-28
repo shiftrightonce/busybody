@@ -292,6 +292,17 @@ impl ServiceContainer {
         }
 
         if self.is_proxy() {
+            let value = Box::pin(
+                service_container()
+                    .container
+                    .get::<T>(self.make_reference()),
+            )
+            .await;
+
+            if value.is_some() {
+                return value;
+            }
+
             return Box::pin(service_container().get_type()).await;
         }
 
