@@ -167,6 +167,9 @@ impl Default for ServiceContainer {
 }
 
 impl ServiceContainer {
+    pub fn id(&self) -> &str {
+        self.id.as_str()
+    }
     pub(crate) fn new() -> Self {
         let id = GLOBAL_INSTANCE_ID.to_string();
 
