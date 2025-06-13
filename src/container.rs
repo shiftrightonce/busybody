@@ -167,6 +167,9 @@ impl Default for ServiceContainer {
 }
 
 impl ServiceContainer {
+    pub fn id(&self) -> &str {
+        self.id.as_str()
+    }
     pub(crate) fn new() -> Self {
         let id = GLOBAL_INSTANCE_ID.to_string();
 
@@ -292,6 +295,17 @@ impl ServiceContainer {
         }
 
         if self.is_proxy() {
+            let value = Box::pin(
+                service_container()
+                    .container
+                    .get::<T>(self.make_reference()),
+            )
+            .await;
+
+            if value.is_some() {
+                return value;
+            }
+
             return Box::pin(service_container().get_type()).await;
         }
 
@@ -486,7 +500,9 @@ impl Default for ServiceContainerBuilder {
 impl ServiceContainerBuilder {
     pub fn new() -> Self {
         Self {
-            service_container: ServiceContainer::new(),
+            service_container: SERVICE_CONTAINER
+                .get_or_init(|| ServiceContainer::new())
+                .clone(),
         }
     }
 
@@ -598,13 +614,7 @@ impl ServiceContainerBuilder {
 
     /// Instantiate and returns the service container
     pub fn build(self) -> ServiceContainer {
-        if self.service_container.id.as_str() == GLOBAL_INSTANCE_ID {
-            SERVICE_CONTAINER
-                .get_or_init(|| self.service_container)
-                .clone()
-        } else {
-            self.service_container
-        }
+        self.service_container
     }
 }
 
