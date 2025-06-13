@@ -3,8 +3,7 @@
 use futures::future::BoxFuture;
 
 use crate::{
-    Resolver, ServiceContainer, ServiceContainerBuilder, container::SERVICE_CONTAINER,
-    handlers::Handler, service::Service,
+    Resolver, ServiceContainer, ServiceContainerBuilder, handlers::Handler, service::Service,
 };
 
 /// Takes an async function or closure and execute it
@@ -64,9 +63,6 @@ pub async fn service<T: Send + Sync + 'static>() -> Service<T> {
 
 /// Returns the global service container instance
 pub fn service_container() -> ServiceContainer {
-    if let Some(container) = SERVICE_CONTAINER.get() {
-        return container.clone();
-    }
     ServiceContainerBuilder::new().build()
 }
 

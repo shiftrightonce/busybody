@@ -500,7 +500,9 @@ impl Default for ServiceContainerBuilder {
 impl ServiceContainerBuilder {
     pub fn new() -> Self {
         Self {
-            service_container: ServiceContainer::new(),
+            service_container: SERVICE_CONTAINER
+                .get_or_init(|| ServiceContainer::new())
+                .clone(),
         }
     }
 
@@ -612,13 +614,7 @@ impl ServiceContainerBuilder {
 
     /// Instantiate and returns the service container
     pub fn build(self) -> ServiceContainer {
-        if self.service_container.id.as_str() == GLOBAL_INSTANCE_ID {
-            SERVICE_CONTAINER
-                .get_or_init(|| self.service_container)
-                .clone()
-        } else {
-            self.service_container
-        }
+        self.service_container
     }
 }
 
