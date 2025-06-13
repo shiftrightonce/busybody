@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2025-06-13
+
+### Bug Fixes
+
+- Now checking for the global instance very early
+
+### Features
+
+- Use the proxy ref on the global
+- Expose the service container id
+
 ## [1.0.6] - 2025-05-23
 
 ### Features
@@ -42,8 +53,8 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-- Wrong grammar
-- Remove deprecated code
+- Wrong grammer
+- Remove decprecated code
 
 ### Miscellaneous Tasks
 
