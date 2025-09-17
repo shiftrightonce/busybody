@@ -17,8 +17,12 @@ async fn main() {
         ci.set_type(6).await;
 
         println!("task 1 i32 value 1: {:?}", ci.get_type::<i32>().await);
+        println!(
+            "task 1 i32 value 1a: {:?}",
+            busybody::helpers::get_type::<i32>().await
+        );
 
-        // using another instance will still point to the same task instnce
+        // Using another instance will still point to the same task instance
         c2.set_type(77).await;
 
         println!("task 1 i32 value 2: {:?}", ci.get_type::<i32>().await);
@@ -30,7 +34,7 @@ async fn main() {
             busybody::helpers::make_proxy().get_type::<i32>().await
         );
 
-        // values set on a proxy will be limited to that proxy
+        // Values set on a proxy will be limited to that proxy
         let proxy = busybody::helpers::make_proxy();
         proxy.set_type(55).await;
 
