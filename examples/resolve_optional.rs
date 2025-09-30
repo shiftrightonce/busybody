@@ -3,19 +3,17 @@ async fn main() {
     let container = busybody::ServiceContainerBuilder::new()
         .register(0) // 1. We are storing a counter that will be used to count the number of visitors
         .await
-        .resolver(|container| {
-            Box::pin(async move {
-                let current = container.get_type::<i32>().await.unwrap_or_default() + 1; // increment counter
-                container.set_type(current).await; // resave it
+        .resolver(|container| async move {
+            let current = container.get_type::<i32>().await.unwrap_or_default() + 1; // increment counter
+            container.set_type(current).await; // resave it
 
-                // 2. For every tenth visitor, apply a 25% discount
-                //    An example of how we could return none for a particular resource
-                if current % 10 == 0 {
-                    Some(Discount(0.25))
-                } else {
-                    None
-                }
-            })
+            // 2. For every tenth visitor, apply a 25% discount
+            //    An example of how we could return none for a particular resource
+            if current % 10 == 0 {
+                Some(Discount(0.25))
+            } else {
+                None
+            }
         })
         .await
         .build();

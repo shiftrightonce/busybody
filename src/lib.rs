@@ -65,12 +65,10 @@
 //!
 //!     // Whenever an instance of Config is needed
 //!     // this closure will be called
-//!     helpers::resolver(|_container| {
-//!         Box::pin(async {
+//!     helpers::resolver(|_container| async move {
 //!             Config {
 //!                 hostname: "127.0.0.1".to_string(),
 //!             }
-//!         })
 //!     })
 //!     .await;
 //!
@@ -182,12 +180,10 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     helpers::resolver_once(|_| {
-//!         Box::pin(async {
+//!     helpers::resolver_once(|_| async {
 //!             Config {
 //!                 uptime: SystemTime::now(),
 //!             }
-//!         })
 //!     })
 //!     .await;
 //!
