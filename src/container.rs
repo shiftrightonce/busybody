@@ -369,7 +369,7 @@ impl ServiceContainer {
     /// an instance of the specified type is requested
     /// This closure will override existing closure for this type
     ///
-    pub(crate) async fn resolver<T: Send + Sync + 'static, F>(
+    pub async fn resolver<T: Send + Sync + 'static, F>(
         &self,
         callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
     ) -> &Self
