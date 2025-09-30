@@ -1,6 +1,6 @@
 [package]
 name = "busybody"
-version = "1.0.8"
+version = "1.0.9"
 edition = "2024"
 license = "MIT"
 description = "Service Container and Dependency injector crate"
@@ -11,9 +11,9 @@ categories = ["asynchronous", "web-programming"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3"
-async-trait = "0.1"
-tokio = { version = "1", features = [
+futures = "0.3.31"
+async-trait = "0.1.89"
+tokio = { version = "1.47.1", features = [
   "macros",
   "rt",
   "rt-multi-thread",
@@ -23,12 +23,12 @@ ulid = "1"
 
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
-actix-web = { version = "4" }
-rand = { version = "0.9" }
-uuid = { version = "1", features = ["v4"] }
-chrono = { version = "0.4" }
-serde = { version = "1.0.164", features = ["derive"] }
-serde_json = "1.0"
-reqwest = { version = "0.12", features = ["json"] }
-axum = "0.8"
+tokio = { version = "1.47.1", features = ["full"] }
+actix-web = { version = "4.11.0" }
+rand = { version = "0.9.2" }
+uuid = { version = "1.18.1", features = ["v4"] }
+chrono = { version = "0.4.42" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+reqwest = { version = "0.12.23", features = ["json"] }
+axum = "0.8.5"
