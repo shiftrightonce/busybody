@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.11] - 2025-10-23
+
+### Features
+
+- ID changed to u64
+
 ## [1.0.10] - 2025-09-30
 
 ### Features
