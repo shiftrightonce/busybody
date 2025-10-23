@@ -1,8 +1,8 @@
-use axum::{extract::Path, routing::get, Json, Router};
-use busybody::{helpers::service_container, Service};
+use axum::{Json, Router, extract::Path, routing::get};
+use busybody::{Service, helpers::service_container};
 use hacker_news_common::{
-    hacker_news_client::{self, HackerNewsClientTrait},
     Config, HackerNewsClientProvider,
+    hacker_news_client::{self, HackerNewsClientTrait},
 };
 
 #[path = "../hacker_news_common/lib.rs"]
@@ -30,6 +30,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(top_stories))
         .route("/item/{id}", get(get_story));
+
+    println!("listening on port: 8080");
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

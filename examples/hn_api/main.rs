@@ -3,10 +3,10 @@ use std::sync::Arc;
 #[path = "../hacker_news_common/lib.rs"]
 mod hacker_news_common;
 
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use busybody::helpers::service_container;
 use hacker_news_common::{
-    hacker_news_client::HackerNewsClientTrait, Config, HackerNewsClientProvider,
+    Config, HackerNewsClientProvider, hacker_news_client::HackerNewsClientTrait,
 };
 
 #[actix_web::main]
@@ -27,6 +27,8 @@ async fn main() -> std::io::Result<()> {
 
     //
     service_container().set_type(config).await;
+
+    println!("listening on port: 8080");
 
     HttpServer::new(|| {
         App::new()

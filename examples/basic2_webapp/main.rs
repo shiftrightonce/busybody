@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use busybody::ServiceContainer;
 use chrono::prelude::*;
 use rand::{self, Rng};
@@ -10,7 +10,9 @@ async fn main() -> std::io::Result<()> {
     // 1. Wrapping our shared resources in Arc
     //    Both of them implements Resolver
     busybody::helpers::resolvable_once::<Arc<ServerUptime>>().await;
-    busybody::helpers::resolvable_once::<Arc<HandlerExecutionTime>>().await;
+    busybody::helpers::resolvable::<Arc<HandlerExecutionTime>>().await;
+
+    println!("listening on port: 8081");
 
     HttpServer::new(|| {
         App::new()
@@ -89,20 +91,13 @@ impl HandlerExecutionTime {
 
 async fn uptime() -> impl Responder {
     // 5. Ask for an instance of HandlerExecutionTime to be created and provided
-    println!(
-        "has handler exec: {}",
-        busybody::helpers::get_service::<HandlerExecutionTime>()
-            .await
-            .is_some()
-    );
     let timer = busybody::helpers::get_service::<HandlerExecutionTime>()
         .await
         .unwrap();
     let mut rang = rand::rng();
 
-    for _ in 0..rang.random_range(1..20000000) {
-        // pretend we are doing something that could take some time....
-    }
+    // pretend we are doing something that could take some time....
+    tokio::time::sleep(Duration::from_secs(rang.random_range(1..=10))).await;
 
     HttpResponse::Ok()
         .content_type("text/html")
