@@ -12,9 +12,9 @@ use std::{
 };
 
 pub(crate) static SERVICE_CONTAINER: OnceLock<ServiceContainer> = OnceLock::new();
-pub(crate) const GLOBAL_INSTANCE_ID: &str = "_global_ci";
+pub(crate) const GLOBAL_INSTANCE_ID: u64 = 0;
 pub(crate) static TASK_SERVICE_CONTAINER: OnceLock<
-    std::sync::Mutex<HashMap<String, (AtomicUsize, Container)>>,
+    std::sync::Mutex<HashMap<u64, (AtomicUsize, Container)>>,
 > = OnceLock::new();
 
 type ResolverCollection = HashMap<
@@ -144,7 +144,7 @@ pub struct ServiceContainer {
     is_task_mode: bool,
     is_reference: bool,
     container: Container,
-    id: Arc<String>,
+    id: u64,
 }
 
 impl Debug for ServiceContainer {
@@ -172,16 +172,14 @@ impl Default for ServiceContainer {
 }
 
 impl ServiceContainer {
-    pub fn id(&self) -> &str {
-        self.id.as_str()
+    pub fn id(&self) -> u64 {
+        self.id
     }
     pub(crate) fn new() -> Self {
-        let id = GLOBAL_INSTANCE_ID.to_string();
-
         _ = TASK_SERVICE_CONTAINER.get_or_init(std::sync::Mutex::default);
 
         Self {
-            id: Arc::new(id),
+            id: GLOBAL_INSTANCE_ID,
             in_proxy_mode: false,
             is_task_mode: false,
             is_reference: false,
@@ -207,9 +205,8 @@ impl ServiceContainer {
     /// This allows a new instance of a type to be created and use in
     /// a specific scope
     pub fn proxy() -> Self {
-        let id = ulid::Ulid::new().to_string().to_lowercase();
         let mut ci = Self::default();
-        ci.id = Arc::new(id);
+        ci.id = ulid::Ulid::new().0 as u64;
         ci.in_proxy_mode = true;
 
         ci
@@ -225,12 +222,14 @@ impl ServiceContainer {
 
         let id = if let Some(id) = tokio::task::try_id() {
             id.to_string()
+                .parse::<u64>()
+                .unwrap_or_else(|_| ulid::Ulid::new().0 as u64)
         } else {
             return Err("Task proxy requires a async task process".to_string());
         };
 
         let mut ci = Self::default();
-        ci.id = Arc::new(id.clone());
+        ci.id = id;
         ci.in_proxy_mode = true;
         ci.is_task_mode = true;
 
@@ -340,6 +339,8 @@ impl ServiceContainer {
     pub(crate) fn get_task_instance() -> Option<ServiceContainer> {
         let id = if let Some(id) = tokio::task::try_id() {
             id.to_string()
+                .parse::<u64>()
+                .unwrap_or_else(|_| ulid::Ulid::new().0 as u64)
         } else {
             return None;
         };
@@ -350,7 +351,7 @@ impl ServiceContainer {
         {
             counter.fetch_add(1, std::sync::atomic::Ordering::Acquire);
             let mut instance = Self::proxy();
-            instance.id = Arc::new(id);
+            instance.id = id;
             instance.container = c.clone();
             instance.is_task_mode = true;
             return Some(instance);
@@ -495,10 +496,10 @@ impl Drop for ServiceContainer {
             && let Some(mutex) = TASK_SERVICE_CONTAINER.get()
             && let Ok(mut lock) = mutex.lock()
         {
-            if let Some((counter, sc)) = lock.remove(self.id.as_str())
+            if let Some((counter, sc)) = lock.remove(&self.id)
                 && counter.fetch_sub(1, std::sync::atomic::Ordering::Acquire) > 0
             {
-                lock.insert(self.id.to_string(), (counter, sc));
+                lock.insert(self.id, (counter, sc));
             }
             drop(lock);
         }
