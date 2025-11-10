@@ -3,6 +3,7 @@
 **Busybody is a service container and dependency injector for rust application.**
 
 ---
+![Crates.io Total Downloads](https://img.shields.io/crates/d/busybody)
 
 ## Busybody as a service container
 
