@@ -4,6 +4,7 @@
 
 ---
 ![Crates.io Total Downloads](https://img.shields.io/crates/d/busybody)
+![Crates.io Version](https://img.shields.io/crates/v/busybody)
 
 ## Busybody as a service container
 
