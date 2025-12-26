@@ -536,7 +536,9 @@ impl ServiceContainerBuilder {
     /// Registers an instance of a type
     pub async fn register<T: Clone + Send + Sync + 'static>(self, ext: T) -> Self {
         self.service_container.set_type(ext).await;
-        self
+        // Makes it easy for this type to be resolvable
+        self.resolver(|ci| async move { ci.get_type::<T>().await })
+            .await
     }
 
     /// Registers a closure that will be call each time
@@ -599,10 +601,13 @@ impl ServiceContainerBuilder {
     /// If a closure already registered for this type, this one will be ignore
     ///
     ///
-    pub async fn soft_resolver<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver<T: Clone + Send + Sync + 'static, F>(
         self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Clone + 'static,
-    ) -> Self {
+        callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+    ) -> Self
+    where
+        F: Future<Output = T> + Send + 'static,
+    {
         self.service_container.soft_resolver(callback).await;
         self
     }
@@ -616,10 +621,13 @@ impl ServiceContainerBuilder {
     ///
     /// Note: The service container passed to your callback is the instance
     ///       of the global service container
-    pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static>(
+    pub async fn soft_resolver_once<T: Clone + Send + Sync + 'static, F>(
         self,
-        callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
-    ) -> Self {
+        callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+    ) -> Self
+    where
+        F: Future<Output = T> + Send + 'static,
+    {
         self.service_container.soft_resolver_once(callback).await;
         self
     }
