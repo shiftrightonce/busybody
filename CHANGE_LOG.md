@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### Features
+
+- A registered instance can be resolve now
+
 ## [1.0.11] - 2025-10-23
 
 ### Features
