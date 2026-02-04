@@ -1,6 +1,6 @@
 [package]
 name = "busybody"
-version = "1.0.12"
+version = "1.0.13"
 edition = "2024"
 license = "MIT"
 description = "Service Container and Dependency injector crate"
@@ -30,5 +30,5 @@ uuid = { version = "1.19.0", features = ["v4"] }
 chrono = { version = "0.4.42" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.147"
-reqwest = { version = "0.12.28", features = ["json"] }
+reqwest = { version = "0.13.1", features = ["json"] }
 axum = "0.8.8"
