@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use busybody::*;
-use rand::Rng;
+use rand::RngExt;
 use std::fmt::Debug;
 use std::ops::Deref;
 

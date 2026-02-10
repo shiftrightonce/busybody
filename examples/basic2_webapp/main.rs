@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use busybody::ServiceContainer;
 use chrono::prelude::*;
-use rand::{self, Rng};
+use rand::{self, RngExt};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

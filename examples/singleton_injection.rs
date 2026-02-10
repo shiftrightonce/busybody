@@ -2,7 +2,7 @@ use busybody::{
     Resolver, ServiceContainer, ServiceContainerBuilder,
     helpers::{self},
 };
-use rand::Rng;
+use rand::RngExt;
 
 #[tokio::main]
 async fn main() {
