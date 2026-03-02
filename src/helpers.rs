@@ -130,7 +130,7 @@ pub async fn set_type<T: Clone + Send + Sync + 'static>(ext: T) -> ServiceContai
 /// This function uses the global container
 ///
 pub async fn resolver<T: Clone + Send + Sync + 'static, F>(
-    callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
+    callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
 ) -> ServiceContainer
 where
     F: Future<Output = T> + Send + 'static,
@@ -172,7 +172,7 @@ pub async fn soft_resolvable<T: Resolver + Clone + Send + Sync + 'static>() -> S
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
 pub async fn resolver_once<T: Clone + Send + Sync + 'static, F>(
-    callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+    callback: impl Fn(ServiceContainer) -> F + Send + 'static,
 ) -> ServiceContainer
 where
     F: Future<Output = T> + Send + 'static,
@@ -189,8 +189,8 @@ where
 ///
 /// Note: The service container passed to your callback is the instance
 ///       of the global service container
-pub async fn soft_resolver<T: Clone + Send + Sync + 'static, F>(
-    callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+pub async fn soft_resolver<T: Clone + Send + 'static, F>(
+    callback: impl Fn(ServiceContainer) -> F + Send + 'static,
 ) -> ServiceContainer
 where
     F: Future<Output = T> + Send + 'static,

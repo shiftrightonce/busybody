@@ -22,11 +22,7 @@ type ResolverCollection = HashMap<
     Arc<
         Mutex<
             Box<
-                dyn FnMut(
-                        ServiceContainer,
-                    )
-                        -> BoxFuture<'static, Box<dyn Any + Send + Sync + 'static>>
-                    + Sync
+                dyn Fn(ServiceContainer) -> BoxFuture<'static, Box<dyn Any + Send + 'static>>
                     + Send
                     + 'static,
             >,
@@ -52,7 +48,7 @@ impl Container {
 
         if let Some(mutex) = lock.get(&TypeId::of::<T>()).cloned() {
             drop(lock);
-            let mut callback = mutex.lock().await;
+            let callback = mutex.lock().await;
             return callback(ci).await.downcast_ref::<T>().cloned();
         }
 
@@ -80,7 +76,7 @@ impl Container {
         let mut lock = self.resolvers.write().await;
         if let Some(mutex) = lock.remove(&TypeId::of::<T>()) {
             drop(lock);
-            let mut callback = mutex.lock().await;
+            let callback = mutex.lock().await;
             return callback(ci).await.downcast::<T>().ok();
         }
 
@@ -97,9 +93,9 @@ impl Container {
         }
     }
 
-    pub(crate) async fn resolver<T: Send + Sync + 'static, F>(
+    pub(crate) async fn resolver<T: Send + 'static, F>(
         &self,
-        mut callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + 'static,
     ) -> &Self
     where
         F: Future<Output = T> + Send + 'static,
@@ -111,16 +107,16 @@ impl Container {
                 let f = (callback)(c);
                 Box::pin(async move {
                     //
-                    Box::new(f.await) as Box<dyn Any + Send + Sync + 'static>
+                    Box::new(f.await) as Box<dyn Any + Send + 'static>
                 })
             }))),
         );
         self
     }
 
-    pub(crate) async fn soft_resolver<T: Clone + Send + Sync + 'static, F>(
+    pub(crate) async fn soft_resolver<T: Clone + Send + 'static, F>(
         &self,
-        callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + 'static,
     ) -> &Self
     where
         F: Future<Output = T> + Send + 'static,
@@ -372,7 +368,7 @@ impl ServiceContainer {
     ///
     pub async fn resolver<T: Send + Sync + 'static, F>(
         &self,
-        callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + 'static,
     ) -> &Self
     where
         F: Future<Output = T> + Send + 'static,
@@ -404,9 +400,9 @@ impl ServiceContainer {
     /// an instance of the specified type is requested
     /// This closure will be ignored if the type already has a registered resolver
     ///
-    pub async fn soft_resolver<T: Clone + Send + Sync + 'static, F>(
+    pub async fn soft_resolver<T: Clone + Send + 'static, F>(
         &self,
-        callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + 'static,
     ) -> &Self
     where
         F: Future<Output = T> + Send + 'static,
@@ -422,7 +418,7 @@ impl ServiceContainer {
     pub async fn resolver_once<T: Clone + Send + Sync + 'static, F>(
         &self,
         // callback: impl Fn(ServiceContainer) -> BoxFuture<'static, T> + Send + Sync + Copy + 'static,
-        callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + 'static,
     ) -> &Self
     where
         F: Future<Output = T> + Send + 'static,
@@ -547,7 +543,7 @@ impl ServiceContainerBuilder {
     /// This closure will override existing closure for this type
     pub async fn resolver<T: Clone + Send + Sync + 'static, F>(
         self,
-        callback: impl FnMut(ServiceContainer) -> F + Send + Sync + 'static,
+        callback: impl Fn(ServiceContainer) -> F + Send + Sync + 'static,
     ) -> Self
     where
         F: Future<Output = T> + Send + 'static,
