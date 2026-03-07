@@ -8,7 +8,7 @@ pub trait Handler<Args> {
 
 impl<Func, Fut> Handler<()> for Func
 where
-    Func: Fn() -> Fut + 'static,
+    Func: FnMut() -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
@@ -21,7 +21,7 @@ where
 // 1 Argument
 impl<Func, Arg1, Fut> Handler<(Arg1,)> for Func
 where
-    Func: Fn(Arg1) -> Fut + 'static,
+    Func: FnMut(Arg1) -> Fut + 'static,
     Fut: Future,
 {
     type Output = Fut::Output;
@@ -33,7 +33,7 @@ where
 
 macro_rules! handler_func{
     ($($T: ident),*) => {
-        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: Fn($($T),+) -> Fut + 'static,
+        impl<Func, $($T),+, Fut> Handler<($($T),+)> for Func where Func: FnMut($($T),+) -> Fut + 'static,
         Fut: Future,
         {
             type Output = Fut::Output;
