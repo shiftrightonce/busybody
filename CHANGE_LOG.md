@@ -2,7 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [1.0.16] - 2026-03-07
+
+### Bug Fixes
+
+- Reverted to FnMut
+
+## [1.0.15] - 2026-03-02
+
+### Features
+
+- Change resolver to `Fn` and remove `Sync` bound
+
+## [1.0.14] - 2026-02-10
+
+### Bug Fixes
+
+- Import `rand` extension
+
+### Miscellaneous Tasks
+
+- Update crates
+- Bump bytes from 1.10.1 to 1.11.1
+- Bump time from 0.3.46 to 0.3.47
+
+## [1.0.12] - 2025-12-26
 
 ### Features
 
@@ -20,12 +44,6 @@ All notable changes to this project will be documented in this file.
 
 - Re-expose privated method
 
-## [1.0.9] - 2025-09-30
-
-### Features
-
-- Move the pinning into the container
-
 ## [1.0.7] - 2025-06-13
 
 ### Bug Fixes
@@ -36,6 +54,7 @@ All notable changes to this project will be documented in this file.
 
 - Use the proxy ref on the global
 - Expose the service container id
+- Move the pinning into the container
 
 ## [1.0.6] - 2025-05-23
 
