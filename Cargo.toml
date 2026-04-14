@@ -25,7 +25,7 @@ ulid = "1"
 [dev-dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
 actix-web = { version = "4.13.0" }
-rand = { version = "0.10.0" }
+rand = { version = "0.10.1" }
 uuid = { version = "1.22.0", features = ["v4"] }
 chrono = { version = "0.4.44" }
 serde = { version = "1.0.228", features = ["derive"] }
