@@ -1,6 +1,6 @@
 [package]
 name = "busybody"
-version = "1.0.16"
+version = "1.0.17"
 edition = "2024"
 license = "MIT"
 description = "Service Container and Dependency injector crate"
@@ -23,12 +23,12 @@ ulid = "1"
 
 
 [dev-dependencies]
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = { version = "1.52.1", features = ["full"] }
 actix-web = { version = "4.13.0" }
 rand = { version = "0.10.1" }
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { version = "1.23.1", features = ["v4"] }
 chrono = { version = "0.4.44" }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.147"
-reqwest = { version = "0.13.2", features = ["json"] }
-axum = "0.8.8"
+serde_json = "1.0.149"
+reqwest = { version = "0.13.3", features = ["json"] }
+axum = "0.8.9"
