@@ -132,6 +132,15 @@ impl Container {
         let lock = self.resolvers.read().await;
         lock.get(&TypeId::of::<T>()).is_some()
     }
+
+    pub(crate) async fn clear(&self) {
+        let mut lock = self.services.write().await;
+        lock.clear();
+        drop(lock);
+
+        let mut lock = self.resolvers.write().await;
+        lock.clear();
+    }
 }
 
 #[derive(Clone)]
@@ -491,10 +500,14 @@ impl Drop for ServiceContainer {
             && let Some(mutex) = TASK_SERVICE_CONTAINER.get()
             && let Ok(mut lock) = mutex.lock()
         {
-            if let Some((counter, sc)) = lock.remove(&self.id)
-                && counter.fetch_sub(1, std::sync::atomic::Ordering::Acquire) > 0
-            {
-                lock.insert(self.id, (counter, sc));
+            if let Some((counter, sc)) = lock.remove(&self.id) {
+                if counter.fetch_sub(1, std::sync::atomic::Ordering::Acquire) > 0 {
+                    lock.insert(self.id, (counter, sc));
+                } else {
+                    tokio::spawn(async move {
+                        sc.clear().await;
+                    });
+                }
             }
             drop(lock);
         }
