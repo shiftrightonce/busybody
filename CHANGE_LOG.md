@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.17] - 2026-04-28
+
+### Features
+
+- Clear the collection before dropping
+
+### Miscellaneous Tasks
+
+- Bump quinn-proto from 0.11.13 to 0.11.14
+- Bump rustls-webpki from 0.103.9 to 0.103.10
+- Bump rand from 0.10.0 to 0.10.1
+
 ## [1.0.16] - 2026-03-07
 
 ### Bug Fixes
